@@ -1,0 +1,31 @@
+{
+  "format_version": "1.0",
+  "provider_schemas": {
+    "registry.terraform.io/example/setbool": {
+      "provider": {
+        "version": 0,
+        "block": {
+          "attributes": {},
+          "description_kind": "markdown"
+        }
+      },
+      "resource_schemas": {
+        "setbool_resource": {
+          "version": 0,
+          "block": {
+            "attributes": {
+              "flags": {
+                "type": ["set", "bool"],
+                "description": "A set of booleans",
+                "description_kind": "markdown",
+                "optional": true
+              }
+            },
+            "description_kind": "markdown"
+          }
+        }
+      },
+      "data_source_schemas": {}
+    }
+  }
+}

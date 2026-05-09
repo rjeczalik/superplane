@@ -18,6 +18,7 @@ import {
 } from "@/hooks/useIntegrations";
 import { ConfigurationFieldRenderer } from "@/ui/configurationFieldRenderer";
 import { getApiErrorMessage } from "@/lib/errors";
+import { isCapabilityBasedIntegration, isCapabilityBasedIntegrationDefinition } from "@/lib/integrations";
 import { showErrorToast } from "@/lib/toast";
 import { IntegrationCreateDialog } from "@/ui/IntegrationCreateDialog";
 import { IntegrationInstructions } from "@/ui/IntegrationInstructions";
@@ -42,6 +43,7 @@ import type { ReactNode } from "react";
 import { ExecutionChainPage, HistoryQueuePage, PageHeader } from "./pages";
 import { mapTriggerEventToSidebarEvent } from "@/pages/workflowv2/utils";
 import { analytics, useIntegrationConfigureOpen } from "@/lib/analytics";
+import { useNavigate } from "react-router-dom";
 
 /** Optional create-dialog overrides per integration (two-step API + webhook flow). Key = integration name. */
 const CREATE_INTEGRATION_DIALOG_OPTIONS: Record<
@@ -230,6 +232,7 @@ export const ComponentSidebar = ({
   onExecutionChainHandled,
   readOnly = false,
 }: ComponentSidebarProps) => {
+  const navigate = useNavigate();
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = localStorage.getItem(COMPONENT_SIDEBAR_WIDTH_STORAGE_KEY);
     return saved ? parseInt(saved, 10) : 450;
@@ -315,19 +318,48 @@ export const ComponentSidebar = ({
   }, [nodeId]);
 
   const handleOpenCreateIntegrationDialog = useCallback(() => {
+    if (
+      domainId &&
+      integrationName &&
+      createIntegrationDefinition &&
+      isCapabilityBasedIntegrationDefinition(createIntegrationDefinition)
+    ) {
+      navigate(`/${domainId}/settings/integrations/${integrationName}/setup`);
+      return;
+    }
+
     setIsCreateIntegrationDialogOpen(true);
     if (integrationName && domainId) {
       analytics.integrationConnectStart(integrationName, "node_configuration", domainId);
     }
-  }, [integrationName, domainId]);
+  }, [createIntegrationDefinition, domainId, integrationName, navigate]);
 
   const handleCloseCreateIntegrationDialog = useCallback(() => {
     setIsCreateIntegrationDialogOpen(false);
   }, []);
 
-  const handleOpenConfigureIntegrationDialog = useCallback((integrationId: string) => {
-    setConfigureIntegrationId(integrationId);
-  }, []);
+  const handleOpenConfigureIntegrationDialog = useCallback(
+    (integrationId: string) => {
+      const integration = integrations?.find((item) => item.metadata?.id === integrationId);
+      const providerName = integration?.metadata?.integrationName;
+      if (domainId && integration && providerName && isCapabilityBasedIntegration(integration)) {
+        if (integration.status?.setupState?.currentStep) {
+          navigate(`/${domainId}/settings/integrations/${providerName}/setup`, {
+            state: { integrationId },
+          });
+          return;
+        }
+
+        navigate(`/${domainId}/settings/integrations/${integrationId}`, {
+          state: { tab: "configuration" },
+        });
+        return;
+      }
+
+      setConfigureIntegrationId(integrationId);
+    },
+    [domainId, integrations, navigate],
+  );
 
   const handleCloseConfigureIntegrationDialog = useCallback(() => {
     setConfigureIntegrationId(null);

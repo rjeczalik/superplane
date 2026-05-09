@@ -89,6 +89,15 @@ func (w *IntegrationCleanupWorker) processIntegration(tx *gorm.DB, integration *
 		return nil
 	}
 
+	retainedManagedResources, err := models.CountRetainedManagedResourceRowsForIntegration(integration.ID)
+	if err != nil {
+		return err
+	}
+	if retainedManagedResources > 0 {
+		w.log("Integration %s still has %d retained managed resource rows - skipping", integration.ID, retainedManagedResources)
+		return nil
+	}
+
 	w.log("Cleaning up app installation %s", integration.ID)
 	impl, err := w.registry.GetIntegration(integration.AppName)
 	if err != nil {

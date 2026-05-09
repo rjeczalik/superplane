@@ -61,6 +61,7 @@ import launchdarklyIcon from "@/assets/icons/integrations/launchdarkly.svg";
 import teamsIcon from "@/assets/icons/integrations/teams.svg";
 import ociIcon from "@/assets/icons/integrations/oci.svg";
 import graphqlIcon from "@/assets/icons/graphql.svg";
+import terraformIcon from "@/assets/terraform-logo.svg";
 
 /** Integration type name (e.g. "github") → logo src. Used for Settings tab and header. */
 export const INTEGRATION_APP_LOGO_MAP: Record<string, string> = {
@@ -185,7 +186,18 @@ export const APP_LOGO_MAP: Record<string, string | Record<string, string>> = {
  * Returns logo src for an integration type (e.g. "github" → github icon).
  * Use this for consistent integration icons in Settings tab and header.
  */
-export function getIntegrationIconSrc(integrationName: string | undefined): string | undefined {
+function getConfiguredIntegrationIconSrc(iconSlug: string | undefined): string | undefined {
+  if (iconSlug?.toLowerCase() === "terraform") {
+    return terraformIcon;
+  }
+  return undefined;
+}
+
+export function getIntegrationIconSrc(integrationName: string | undefined, iconSlug?: string): string | undefined {
+  const configuredIconSrc = getConfiguredIntegrationIconSrc(iconSlug);
+  if (configuredIconSrc) {
+    return configuredIconSrc;
+  }
   if (!integrationName) return undefined;
   const key = integrationName.toLowerCase();
   return INTEGRATION_APP_LOGO_MAP[key];
@@ -232,7 +244,7 @@ export function IntegrationIcon({
   className = "h-4 w-4",
   size = DEFAULT_ICON_SIZE,
 }: IntegrationIconProps): React.ReactElement {
-  const logoSrc = getIntegrationIconSrc(integrationName);
+  const logoSrc = getIntegrationIconSrc(integrationName, iconSlug);
   if (logoSrc) {
     return (
       <span className={`inline-block flex-shrink-0 ${className}`}>

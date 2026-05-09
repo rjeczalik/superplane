@@ -21,6 +21,7 @@ export function buildBuildingBlockCategories(
 
 function core(triggers: TriggersTrigger[], components: SuperplaneActionsAction[]): BuildingBlockCategory {
   return {
+    id: "core",
     name: "Core",
     blocks: [
       ...triggers.filter((t) => isCoreComponent(t)).map((t) => toTriggerBlock(t)),
@@ -31,6 +32,7 @@ function core(triggers: TriggersTrigger[], components: SuperplaneActionsAction[]
 
 function debugging(triggers: TriggersTrigger[], components: SuperplaneActionsAction[]): BuildingBlockCategory {
   return {
+    id: "debugging",
     name: "Debugging",
     blocks: [
       ...triggers.filter((t) => isDebuggingBlock(t)).map((t) => toTriggerBlock(t)),
@@ -41,6 +43,7 @@ function debugging(triggers: TriggersTrigger[], components: SuperplaneActionsAct
 
 function memory(triggers: TriggersTrigger[], components: SuperplaneActionsAction[]): BuildingBlockCategory {
   return {
+    id: "memory",
     name: "Memory",
     blocks: [
       ...triggers.filter((t) => isMemoryBlock(t)).map((t) => toTriggerBlock(t)),
@@ -62,14 +65,14 @@ function buildIntegrationCategory(integration: IntegrationsIntegrationDefinition
   const triggers = triggersFromCapabilities(integration.capabilities);
   if (triggers) {
     triggers.forEach((t) => {
-      blocks.push(toTriggerBlock(t, integration.name));
+      blocks.push(toTriggerBlock(t, integration.name, integration.icon));
     });
   }
 
   const actions = actionsFromCapabilities(integration.capabilities);
   if (actions) {
     actions.forEach((c) => {
-      blocks.push(toComponentBlock(c, integration.name));
+      blocks.push(toComponentBlock(c, integration.name, integration.icon));
     });
   }
 
@@ -78,25 +81,27 @@ function buildIntegrationCategory(integration: IntegrationsIntegrationDefinition
   }
 
   return {
+    id: integration.name,
     name: integration.label || "Unknown Integration",
+    icon: integration.icon,
     blocks,
   };
 }
 
-function toTriggerBlock(trigger: TriggersTrigger, integrationName?: string): BuildingBlock {
+function toTriggerBlock(trigger: TriggersTrigger, integrationName?: string, integrationIcon?: string): BuildingBlock {
   return {
     name: trigger.name!,
     label: trigger.label,
     description: trigger.description,
     type: "trigger",
     configuration: trigger.configuration,
-    icon: trigger.icon,
+    icon: trigger.icon || integrationIcon,
     color: trigger.color,
     integrationName: integrationName,
   };
 }
 
-function toComponentBlock(component: SuperplaneActionsAction, integrationName?: string): BuildingBlock {
+function toComponentBlock(component: SuperplaneActionsAction, integrationName?: string, integrationIcon?: string): BuildingBlock {
   return {
     name: component.name!,
     label: component.label,
@@ -104,7 +109,7 @@ function toComponentBlock(component: SuperplaneActionsAction, integrationName?: 
     type: "component",
     outputChannels: component.outputChannels,
     configuration: component.configuration,
-    icon: component.icon,
+    icon: component.icon || integrationIcon,
     color: component.color,
     integrationName: integrationName,
   };

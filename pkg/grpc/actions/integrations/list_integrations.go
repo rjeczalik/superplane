@@ -39,6 +39,12 @@ func serializeIntegrations(registry *registry.Registry, in []core.Integration) [
 			CapabilityGroups: serializeCapabilityGroups(registry, integration),
 			LegacySetupOnly:  !registry.SupportsNewSetupFlow(integration.Name()),
 		}
+
+		if origin, ok := integration.(core.OriginInfo); ok {
+			out[i].Origin = origin.Origin()
+			out[i].Source = origin.Source()
+			out[i].Version = origin.Version()
+		}
 	}
 	return out
 }

@@ -129,3 +129,35 @@ func (s *PanicableIntegration) HandleRequest(ctx core.HTTPRequestContext) {
 	}()
 	s.underlying.HandleRequest(ctx)
 }
+
+// OriginInfo delegation — returns safe defaults if the underlying integration
+// is nil or does not implement core.OriginInfo.
+func (s *PanicableIntegration) Origin() string {
+	if s == nil || s.underlying == nil {
+		return "native"
+	}
+	if origin, ok := s.underlying.(core.OriginInfo); ok {
+		return origin.Origin()
+	}
+	return "native"
+}
+
+func (s *PanicableIntegration) Source() string {
+	if s == nil || s.underlying == nil {
+		return ""
+	}
+	if origin, ok := s.underlying.(core.OriginInfo); ok {
+		return origin.Source()
+	}
+	return ""
+}
+
+func (s *PanicableIntegration) Version() string {
+	if s == nil || s.underlying == nil {
+		return ""
+	}
+	if origin, ok := s.underlying.(core.OriginInfo); ok {
+		return origin.Version()
+	}
+	return ""
+}

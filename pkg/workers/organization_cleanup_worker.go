@@ -182,6 +182,15 @@ func (w *OrganizationCleanupWorker) processOrganization(tx *gorm.DB, organizatio
 		return nil, fmt.Errorf("delete organization agent sessions: %w", err)
 	}
 
+	retainedManagedResources, err := models.CountRetainedManagedResourceRowsForOrganization(organization.ID)
+	if err != nil {
+		return fmt.Errorf("count retained managed resource rows: %w", err)
+	}
+	if retainedManagedResources > 0 {
+		w.logger.Infof("Skipping hard delete for organization %s while %d retained managed resource rows remain", organization.ID, retainedManagedResources)
+		return nil
+	}
+
 	if err := models.DeleteMetadataForOrganization(tx, models.DomainTypeOrganization, organization.ID.String()); err != nil {
 		return nil, fmt.Errorf("delete organization role metadata: %w", err)
 	}

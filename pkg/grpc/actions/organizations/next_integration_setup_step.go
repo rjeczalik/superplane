@@ -176,7 +176,7 @@ func submitStep(
 
 	if err != nil {
 		logrus.WithError(err).Error("failed to submit integration setup step")
-		return nil, status.Error(codes.Internal, "failed to submit integration setup step")
+		return nil, status.Errorf(codes.Internal, "failed to submit integration setup step: %v", err)
 	}
 
 	proto, err := serializeIntegration(registry, integration, []models.CanvasNodeReference{})

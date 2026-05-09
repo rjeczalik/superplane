@@ -22,6 +22,7 @@ import { UsageLimitAlert } from "@/components/UsageLimitAlert";
 import { showErrorToast } from "@/lib/toast";
 import { IntegrationIcon } from "@/ui/componentSidebar/integrationIcons";
 import { IntegrationInstructions } from "@/ui/IntegrationInstructions";
+import { IntegrationOriginBadge } from "@/ui/IntegrationOriginBadge";
 import { Alert, AlertDescription, AlertTitle } from "@/ui/alert";
 import { analytics } from "@/lib/analytics";
 import { isCapabilityBasedIntegrationDefinition } from "@/lib/integrations";
@@ -296,7 +297,14 @@ export function Integrations({ organizationId }: IntegrationsProps) {
                       />
                     </div>
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100">{item.providerLabel}</h3>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100">{item.providerLabel}</h3>
+                        <IntegrationOriginBadge
+                          origin={item.integrationDef?.origin}
+                          source={item.integrationDef?.source}
+                          version={item.integrationDef?.version}
+                        />
+                      </div>
                       {item.integrationDef?.description ? (
                         <p className="mt-0.5 text-sm text-gray-800 dark:text-gray-400">
                           {item.integrationDef?.description}

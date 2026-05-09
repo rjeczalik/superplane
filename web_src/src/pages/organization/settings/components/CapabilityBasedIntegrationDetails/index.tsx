@@ -79,10 +79,40 @@ export function CapabilityBasedIntegrationDetails({
     }
   };
 
+  const [isReconfiguring, setIsReconfiguring] = useState(false);
+
+  const onReconfigure = async (secretName: string) => {
+    if (!canUpdateIntegrations || isReconfiguring) return;
+    setIsReconfiguring(true);
+    try {
+      const updated = await integrationMutations.updateSecretMutation.mutateAsync({
+        secretName,
+        value: "__reconfigure__",
+      });
+      if (updated?.status?.setupState?.currentStep) {
+        navigate(`/${organizationId}/settings/integrations/${providerName}/setup`, {
+          state: { integrationId },
+        });
+      }
+    } catch (_error) {
+      showErrorToast(`Failed to reconfigure: ${getApiErrorMessage(_error)}`);
+    } finally {
+      setIsReconfiguring(false);
+    }
+  };
+
   const saveSecret = async (secretName: string, value: string, draftFieldKey: string) => {
     if (!canUpdateIntegrations || integrationMutations.settingsMutationBusy || value.trim() === "") return;
     try {
-      await integrationMutations.updateSecretMutation.mutateAsync({ secretName, value });
+      const updated = await integrationMutations.updateSecretMutation.mutateAsync({ secretName, value });
+
+      if (updated?.status?.setupState?.currentStep) {
+        navigate(`/${organizationId}/settings/integrations/${providerName}/setup`, {
+          state: { integrationId },
+        });
+        return;
+      }
+
       detailsState.setSecretDrafts((previous) => ({ ...previous, [draftFieldKey]: "" }));
       showSuccessToast("Secret saved");
     } catch (_error) {
@@ -135,6 +165,8 @@ export function CapabilityBasedIntegrationDetails({
             )
           }
           onApplyCapabilityChanges={handleCapabilitiesSubmit}
+          onReconfigure={onReconfigure}
+          isReconfiguring={isReconfiguring}
         />
       </div>
 

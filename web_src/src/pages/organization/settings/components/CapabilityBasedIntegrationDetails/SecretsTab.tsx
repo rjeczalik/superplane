@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingButton } from "@/components/ui/loading-button";
-import { Check, Pencil, X } from "lucide-react";
+import { Check, Pencil, RefreshCw, X } from "lucide-react";
 import { DescriptionTooltip } from "./DescriptionTooltip";
 import type { Dispatch, SetStateAction } from "react";
 import { useState } from "react";
@@ -18,6 +18,8 @@ export interface SecretsTabProps {
   settingsMutationBusy: boolean;
   saveSecret: (secretName: string, value: string, draftFieldKey: string) => Promise<void>;
   isSavingSecret: (secretName: string | undefined) => boolean;
+  onReconfigure?: (secretName: string) => void;
+  isReconfiguring?: boolean;
 }
 
 const READONLY_SECRET_INPUT_CLASS =
@@ -113,6 +115,8 @@ type SecretReadonlyFieldProps = {
   canUpdateIntegrations: boolean;
   settingsMutationBusy: boolean;
   startEdit: () => void;
+  onReconfigure?: () => void;
+  isReconfiguring?: boolean;
 };
 
 function SecretReadonlyField({
@@ -122,6 +126,8 @@ function SecretReadonlyField({
   canUpdateIntegrations,
   settingsMutationBusy,
   startEdit,
+  onReconfigure,
+  isReconfiguring,
 }: SecretReadonlyFieldProps) {
   return (
     <div className="flex min-w-0 flex-1 items-center gap-1.5">
@@ -135,7 +141,21 @@ function SecretReadonlyField({
         aria-readonly="true"
         className={`min-w-0 flex-1 max-w-xl ${READONLY_SECRET_INPUT_CLASS}`}
       />
-      {isEditable ? (
+      {onReconfigure ? (
+        <LoadingButton
+          type="button"
+          variant="outline"
+          size="sm"
+          className="shrink-0"
+          disabled={!canUpdateIntegrations || settingsMutationBusy}
+          loading={isReconfiguring}
+          loadingText="Reconfiguring…"
+          onClick={onReconfigure}
+        >
+          <RefreshCw className="size-4" aria-hidden />
+          Reconfigure
+        </LoadingButton>
+      ) : isEditable ? (
         <Button
           type="button"
           variant="ghost"
@@ -163,6 +183,8 @@ type IntegrationSecretRowProps = {
   settingsMutationBusy: boolean;
   saveSecret: (secretName: string, value: string, draftFieldKey: string) => Promise<void>;
   isSavingSecret: (secretName: string | undefined) => boolean;
+  onReconfigure?: (secretName: string) => void;
+  isReconfiguring?: boolean;
 };
 
 function IntegrationSecretRow({
@@ -177,6 +199,8 @@ function IntegrationSecretRow({
   settingsMutationBusy,
   saveSecret,
   isSavingSecret,
+  onReconfigure,
+  isReconfiguring,
 }: IntegrationSecretRowProps) {
   const fieldKey = secret.name?.trim() || `__secret_${index}`;
   const title = secret.label?.trim() || "Secret";
@@ -231,6 +255,8 @@ function IntegrationSecretRow({
               canUpdateIntegrations={canUpdateIntegrations}
               settingsMutationBusy={settingsMutationBusy}
               startEdit={startEdit}
+              onReconfigure={onReconfigure && secretNameTrimmed ? () => onReconfigure(secretNameTrimmed) : undefined}
+              isReconfiguring={isReconfiguring}
             />
           )}
         </div>
@@ -248,6 +274,8 @@ export function SecretsTab({
   settingsMutationBusy,
   saveSecret,
   isSavingSecret,
+  onReconfigure,
+  isReconfiguring,
 }: SecretsTabProps) {
   const [editingFieldKey, setEditingFieldKey] = useState<string | null>(null);
 
@@ -269,6 +297,8 @@ export function SecretsTab({
               settingsMutationBusy={settingsMutationBusy}
               saveSecret={saveSecret}
               isSavingSecret={isSavingSecret}
+              onReconfigure={onReconfigure}
+              isReconfiguring={isReconfiguring}
             />
           ))}
         </div>

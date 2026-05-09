@@ -1,0 +1,40 @@
+{
+  "format_version": "1.0",
+  "provider_schemas": {
+    "registry.terraform.io/example/nestedblockmap": {
+      "provider": {
+        "version": 0,
+        "block": {
+          "attributes": {},
+          "description_kind": "markdown"
+        }
+      },
+      "resource_schemas": {
+        "nestedblockmap_resource": {
+          "version": 0,
+          "block": {
+            "attributes": {},
+            "block_types": {
+              "items": {
+                "nesting_mode": "map",
+                "block": {
+                  "attributes": {
+                    "name": {
+                      "type": "string",
+                      "description": "Name",
+                      "description_kind": "markdown",
+                      "optional": true
+                    }
+                  },
+                  "description_kind": "markdown"
+                }
+              }
+            },
+            "description_kind": "markdown"
+          }
+        }
+      },
+      "data_source_schemas": {}
+    }
+  }
+}

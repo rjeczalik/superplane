@@ -70,7 +70,7 @@ function BlockItem({
   dragPreviewRef,
   onBlockClick,
 }: BlockItemProps) {
-  const appIconSrc = getHeaderIconSrc(block.name);
+  const appIconSrc = getIntegrationIconSrc(undefined, block.icon) ?? getHeaderIconSrc(block.name);
   const IconComponent = resolveIcon(resolveIconSlug(block));
   const hoverBg = TYPE_HOVER_BG[block.type] || TYPE_HOVER_BG.component;
   const badgeColor = TYPE_BADGE_COLOR[block.type] || TYPE_BADGE_COLOR.component;
@@ -174,7 +174,8 @@ export function CategorySection({
 
   const firstBlock = sortedBlocks[0];
   const integrationName = firstBlock?.integrationName || category.name.toLowerCase();
-  const categoryIconSrc = integrationName === "smtp" ? undefined : getIntegrationIconSrc(integrationName);
+  const categoryIconSrc =
+    integrationName === "smtp" ? undefined : getIntegrationIconSrc(integrationName, category.icon);
 
   const integrationState = resolveIntegrationState(category, integrations, firstBlock);
   const integrationStatusColorClass = INTEGRATION_STATE_COLOR[integrationState];

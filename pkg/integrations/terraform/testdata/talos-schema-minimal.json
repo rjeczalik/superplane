@@ -1,0 +1,317 @@
+{
+  "format_version": "1.0",
+  "provider_schemas": {
+    "registry.terraform.io/siderolabs/talos": {
+      "provider": {
+        "version": 0,
+        "block": {
+          "attributes": {
+            "host": {
+              "type": "string",
+              "description": "The host URL for the Talos API",
+              "description_kind": "markdown",
+              "optional": true
+            }
+          },
+          "description_kind": "markdown"
+        }
+      },
+      "resource_schemas": {
+        "talos_machine_secrets": {
+          "version": 0,
+          "block": {
+            "attributes": {
+              "machine_type": {
+                "type": "string",
+                "description": "The type of machine",
+                "description_kind": "markdown",
+                "required": true
+              },
+              "talos_version": {
+                "type": "string",
+                "description": "The version of Talos",
+                "description_kind": "markdown",
+                "optional": true
+              }
+            },
+            "description_kind": "markdown"
+          }
+        },
+        "talos_machine_configuration_apply": {
+          "version": 0,
+          "block": {
+            "attributes": {
+              "node": {
+                "type": "string",
+                "description": "The node IP or hostname",
+                "description_kind": "markdown",
+                "required": true
+              },
+              "endpoint": {
+                "type": "string",
+                "description": "The endpoint URL",
+                "description_kind": "markdown",
+                "optional": true
+              },
+              "client_configuration": {
+                "type": [
+                  "object",
+                  {
+                    "ca_certificate": "string",
+                    "client_certificate": "string",
+                    "client_key": "string"
+                  }
+                ],
+                "description": "Client configuration for Talos API",
+                "description_kind": "markdown",
+                "required": true
+              },
+              "machine_configuration": {
+                "type": "string",
+                "description": "The machine configuration",
+                "description_kind": "markdown",
+                "required": true
+              },
+              "config_patches": {
+                "type": [
+                  "list",
+                  [
+                    "object",
+                    {
+                      "op": "string",
+                      "path": "string",
+                      "value": "string"
+                    }
+                  ]
+                ],
+                "description": "JSON patches to apply",
+                "description_kind": "markdown",
+                "optional": true
+              }
+            },
+            "block_types": {
+              "timeouts": {
+                "nesting_mode": "single",
+                "block": {
+                  "attributes": {
+                    "create": {
+                      "type": "string",
+                      "description": "Timeout for create",
+                      "description_kind": "markdown",
+                      "optional": true
+                    },
+                    "update": {
+                      "type": "string",
+                      "description": "Timeout for update",
+                      "description_kind": "markdown",
+                      "optional": true
+                    }
+                  },
+                  "description_kind": "markdown"
+                }
+              }
+            },
+            "description_kind": "markdown"
+          }
+        },
+        "talos_machine_bootstrap": {
+          "version": 0,
+          "block": {
+            "attributes": {
+              "node": {
+                "type": "string",
+                "description": "The node IP or hostname",
+                "description_kind": "markdown",
+                "required": true
+              },
+              "endpoint": {
+                "type": "string",
+                "description": "The endpoint URL",
+                "description_kind": "markdown",
+                "optional": true
+              }
+            },
+            "block_types": {
+              "timeouts": {
+                "nesting_mode": "single",
+                "block": {
+                  "attributes": {
+                    "create": {
+                      "type": "string",
+                      "description": "Timeout for create",
+                      "description_kind": "markdown",
+                      "optional": true
+                    }
+                  },
+                  "description_kind": "markdown"
+                }
+              }
+            },
+            "description_kind": "markdown"
+          }
+        },
+        "talos_cluster_kubeconfig": {
+          "version": 0,
+          "block": {
+            "attributes": {
+              "node": {
+                "type": "string",
+                "description": "The node IP or hostname",
+                "description_kind": "markdown",
+                "required": true
+              },
+              "endpoint": {
+                "type": "string",
+                "description": "The endpoint URL",
+                "description_kind": "markdown",
+                "optional": true
+              },
+              "client_configuration": {
+                "type": [
+                  "object",
+                  {
+                    "ca_certificate": "string",
+                    "client_certificate": "string",
+                    "client_key": "string"
+                  }
+                ],
+                "description": "Client configuration for Talos API",
+                "description_kind": "markdown",
+                "required": true
+              }
+            },
+            "description_kind": "markdown"
+          }
+        }
+      },
+      "data_source_schemas": {
+        "talos_client_configuration": {
+          "version": 0,
+          "block": {
+            "attributes": {
+              "cluster_name": {
+                "type": "string",
+                "description": "The cluster name",
+                "description_kind": "markdown",
+                "required": true
+              },
+              "endpoints": {
+                "type": [
+                  "list",
+                  "string"
+                ],
+                "description": "List of endpoints",
+                "description_kind": "markdown",
+                "required": true
+              },
+              "client_configuration": {
+                "type": [
+                  "object",
+                  {
+                    "ca_certificate": "string",
+                    "client_certificate": "string",
+                    "client_key": "string"
+                  }
+                ],
+                "description": "Client configuration for Talos API",
+                "description_kind": "markdown",
+                "computed": true,
+                "sensitive": true
+              }
+            },
+            "description_kind": "markdown"
+          }
+        },
+        "talos_machine_configuration": {
+          "version": 0,
+          "block": {
+            "attributes": {
+              "cluster_name": {
+                "type": "string",
+                "description": "The cluster name",
+                "description_kind": "markdown",
+                "required": true
+              },
+              "machine_type": {
+                "type": "string",
+                "description": "The type of machine",
+                "description_kind": "markdown",
+                "required": true
+              },
+              "machine_configuration": {
+                "type": "string",
+                "description": "The machine configuration",
+                "description_kind": "markdown",
+                "computed": true
+              }
+            },
+            "description_kind": "markdown"
+          }
+        },
+        "talos_cluster_health": {
+          "version": 0,
+          "block": {
+            "attributes": {
+              "endpoints": {
+                "type": [
+                  "list",
+                  "string"
+                ],
+                "description": "List of endpoints",
+                "description_kind": "markdown",
+                "required": true
+              },
+              "client_configuration": {
+                "type": [
+                  "object",
+                  {
+                    "ca_certificate": "string",
+                    "client_certificate": "string",
+                    "client_key": "string"
+                  }
+                ],
+                "description": "Client configuration for Talos API",
+                "description_kind": "markdown",
+                "required": true
+              },
+              "healthy": {
+                "type": "bool",
+                "description": "Whether the cluster is healthy",
+                "description_kind": "markdown",
+                "computed": true
+              }
+            },
+            "description_kind": "markdown"
+          }
+        },
+        "talos_cluster_kubeconfig": {
+          "version": 0,
+          "block": {
+            "attributes": {
+              "node": {
+                "type": "string",
+                "description": "The node IP or hostname",
+                "description_kind": "markdown",
+                "required": true
+              },
+              "endpoint": {
+                "type": "string",
+                "description": "The endpoint URL",
+                "description_kind": "markdown",
+                "optional": true
+              },
+              "kubeconfig_raw": {
+                "type": "string",
+                "description": "Raw kubeconfig",
+                "description_kind": "markdown",
+                "computed": true,
+                "sensitive": true
+              }
+            },
+            "description_kind": "markdown"
+          }
+        }
+      }
+    }
+  }
+}

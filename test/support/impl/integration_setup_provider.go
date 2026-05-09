@@ -74,3 +74,12 @@ func (p *DummyIntegrationSetupProvider) OnCapabilityUpdate(ctx core.CapabilityUp
 	}
 	return nil, nil
 }
+
+// ProductionOptInSetupProvider wraps a setup provider to opt into production.
+type ProductionOptInSetupProvider struct {
+	core.IntegrationSetupProvider
+}
+
+func (p *ProductionOptInSetupProvider) SupportsSetupFlowInProduction() bool {
+	return true
+}

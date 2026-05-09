@@ -3,13 +3,49 @@ package workers
 import (
 	"log"
 	"testing"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/superplanehq/superplane/pkg/configuration"
+	"github.com/superplanehq/superplane/pkg/core"
+	"github.com/superplanehq/superplane/pkg/database"
 	"github.com/superplanehq/superplane/pkg/models"
 	"github.com/superplanehq/superplane/test/support"
 	"gorm.io/datatypes"
 )
+
+type slowFailingAction struct{}
+
+func (a *slowFailingAction) Name() string                  { return "slow-failing-action" }
+func (a *slowFailingAction) Label() string                 { return "Slow Failing Action" }
+func (a *slowFailingAction) Description() string           { return "" }
+func (a *slowFailingAction) Documentation() string         { return "" }
+func (a *slowFailingAction) Icon() string                  { return "" }
+func (a *slowFailingAction) Color() string                 { return "" }
+func (a *slowFailingAction) ExampleOutput() map[string]any { return nil }
+func (a *slowFailingAction) OutputChannels(any) []core.OutputChannel {
+	return []core.OutputChannel{core.DefaultOutputChannel}
+}
+func (a *slowFailingAction) Configuration() []configuration.Field { return nil }
+func (a *slowFailingAction) Setup(core.SetupContext) error        { return nil }
+func (a *slowFailingAction) ProcessQueueItem(core.ProcessQueueContext) (*uuid.UUID, error) {
+	return nil, nil
+}
+func (a *slowFailingAction) Hooks() []core.Hook { return nil }
+func (a *slowFailingAction) HandleHook(core.ActionHookContext) error {
+	return nil
+}
+func (a *slowFailingAction) HandleWebhook(core.WebhookRequestContext) (int, *core.WebhookResponseBody, error) {
+	return 0, nil, nil
+}
+func (a *slowFailingAction) Cancel(core.ExecutionContext) error { return nil }
+func (a *slowFailingAction) Cleanup(core.SetupContext) error    { return nil }
+func (a *slowFailingAction) Execute(core.ExecutionContext) error {
+	time.Sleep(250 * time.Millisecond)
+	return assert.AnError
+}
 
 func Test__NodeExecutor_PreventsConcurrentProcessing(t *testing.T) {
 	r := support.Setup(t)
@@ -121,6 +157,80 @@ func Test__NodeExecutor_DoesNotProcessExecutionForSoftDeletedOrganization(t *tes
 	require.NoError(t, err)
 	assert.Equal(t, models.CanvasNodeExecutionStatePending, updatedExecution.State)
 	assert.Empty(t, updatedExecution.Result)
+}
+
+func Test__NodeExecutor_PersistsFailureAfterLongRunningAction(t *testing.T) {
+	r := support.Setup(t)
+	r.Registry.Actions["slow-failing-action"] = &slowFailingAction{}
+
+	sqlDB, err := database.Conn().DB()
+	require.NoError(t, err)
+	sqlDB.SetMaxOpenConns(1)
+	defer sqlDB.SetMaxOpenConns(2)
+	require.NoError(t, database.Conn().Exec("SET idle_in_transaction_session_timeout = '100ms'").Error)
+	defer database.Conn().Exec("SET idle_in_transaction_session_timeout = 0")
+
+	triggerNode := "trigger-1"
+	componentNode := "component-1"
+	canvas, _ := support.CreateCanvas(
+		t,
+		r.Organization.ID,
+		r.User,
+		[]models.CanvasNode{
+			{NodeID: triggerNode, Type: models.NodeTypeTrigger, Ref: datatypes.NewJSONType(models.NodeRef{Trigger: &models.TriggerRef{Name: "start"}})},
+			{NodeID: componentNode, Type: models.NodeTypeComponent, Ref: datatypes.NewJSONType(models.NodeRef{Component: &models.ComponentRef{Name: "slow-failing-action"}})},
+		},
+		[]models.Edge{
+			{SourceID: triggerNode, TargetID: componentNode, Channel: "default"},
+		},
+	)
+
+	rootEvent := support.EmitCanvasEventForNode(t, canvas.ID, triggerNode, "default", nil)
+	execution := support.CreateCanvasNodeExecution(t, canvas.ID, componentNode, rootEvent.ID, rootEvent.ID, nil)
+
+	executor := NewNodeExecutor(r.Encryptor, r.Registry, "http://localhost", "http://localhost", "", r.AuthService)
+	err = executor.LockAndProcessNodeExecution(execution.ID)
+	require.NoError(t, err)
+
+	updatedExecution, err := models.FindNodeExecution(canvas.ID, execution.ID)
+	require.NoError(t, err)
+	assert.Equal(t, models.CanvasNodeExecutionStateFinished, updatedExecution.State)
+	assert.Equal(t, models.CanvasNodeExecutionResultFailed, updatedExecution.Result)
+	assert.Equal(t, models.CanvasNodeExecutionResultReasonError, updatedExecution.ResultReason)
+	assert.Equal(t, assert.AnError.Error(), updatedExecution.ResultMessage)
+}
+
+func Test__NodeExecutor_FailsExecutionWhenActionIsNotRegistered(t *testing.T) {
+	r := support.Setup(t)
+
+	triggerNode := "trigger-1"
+	componentNode := "component-1"
+	canvas, _ := support.CreateCanvas(
+		t,
+		r.Organization.ID,
+		r.User,
+		[]models.CanvasNode{
+			{NodeID: triggerNode, Type: models.NodeTypeTrigger, Ref: datatypes.NewJSONType(models.NodeRef{Trigger: &models.TriggerRef{Name: "start"}})},
+			{NodeID: componentNode, Type: models.NodeTypeComponent, Ref: datatypes.NewJSONType(models.NodeRef{Component: &models.ComponentRef{Name: "does-not-exist"}})},
+		},
+		[]models.Edge{
+			{SourceID: triggerNode, TargetID: componentNode, Channel: "default"},
+		},
+	)
+
+	rootEvent := support.EmitCanvasEventForNode(t, canvas.ID, triggerNode, "default", nil)
+	execution := support.CreateCanvasNodeExecution(t, canvas.ID, componentNode, rootEvent.ID, rootEvent.ID, nil)
+
+	executor := NewNodeExecutor(r.Encryptor, r.Registry, "http://localhost", "http://localhost", "", r.AuthService)
+	err := executor.LockAndProcessNodeExecution(execution.ID)
+	require.NoError(t, err)
+
+	updatedExecution, err := models.FindNodeExecution(canvas.ID, execution.ID)
+	require.NoError(t, err)
+	assert.Equal(t, models.CanvasNodeExecutionStateFinished, updatedExecution.State)
+	assert.Equal(t, models.CanvasNodeExecutionResultFailed, updatedExecution.Result)
+	assert.Equal(t, models.CanvasNodeExecutionResultReasonError, updatedExecution.ResultReason)
+	assert.Contains(t, updatedExecution.ResultMessage, "action does-not-exist not found")
 }
 
 func Test__NodeExecutor_BlueprintNodeExecution(t *testing.T) {

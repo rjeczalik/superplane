@@ -491,6 +491,23 @@ func TestRegistry_SupportsNewSetupFlow(t *testing.T) {
 		}
 		assert.False(t, r.SupportsNewSetupFlow("missing"))
 	})
+
+	t.Run("false in production for non-opt-in provider", func(t *testing.T) {
+		r := &registry.Registry{
+			AppEnv:         "production",
+			SetupProviders: map[string]core.IntegrationSetupProvider{"acme": stub},
+		}
+		assert.False(t, r.SupportsNewSetupFlow("acme"))
+	})
+
+	t.Run("true in production for opt-in provider", func(t *testing.T) {
+		optIn := &impl.ProductionOptInSetupProvider{IntegrationSetupProvider: stub}
+		r := &registry.Registry{
+			AppEnv:         "production",
+			SetupProviders: map[string]core.IntegrationSetupProvider{"acme": optIn},
+		}
+		assert.True(t, r.SupportsNewSetupFlow("acme"))
+	})
 }
 
 func TestRegistry_GetSetupProvider(t *testing.T) {

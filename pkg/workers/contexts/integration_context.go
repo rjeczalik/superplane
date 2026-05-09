@@ -478,3 +478,15 @@ func (c *IntegrationContext) Secrets() core.IntegrationSecretStorage {
 	c.secretStorage = NewIntegrationSecretStorage(c.tx, c.encryptor, c.integration)
 	return c.secretStorage
 }
+
+// Capabilities implements core.CapabilityStateAccessor.
+func (c *IntegrationContext) Capabilities() []core.CapabilityState {
+	states := make([]core.CapabilityState, 0, len(c.integration.Capabilities))
+	for _, cap := range c.integration.Capabilities {
+		states = append(states, core.CapabilityState{
+			Name:  cap.Name,
+			State: cap.State,
+		})
+	}
+	return states
+}

@@ -1,6 +1,7 @@
 package workers
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -9,8 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/superplanehq/superplane/pkg/config"
+	"github.com/superplanehq/superplane/pkg/core"
 	"github.com/superplanehq/superplane/pkg/database"
 	"github.com/superplanehq/superplane/pkg/grpc/actions/messages"
+	spterraform "github.com/superplanehq/superplane/pkg/integrations/terraform"
 	"github.com/superplanehq/superplane/pkg/models"
 	testconsumer "github.com/superplanehq/superplane/test/consumer"
 	"github.com/superplanehq/superplane/test/support"
@@ -162,6 +165,62 @@ func Test__NodeQueueWorker_DoesNotProcessQueueForSoftDeletedOrganization(t *test
 
 	assert.False(t, executionConsumer.HasReceivedMessage())
 	assert.False(t, queueConsumedConsumer.HasReceivedMessage())
+}
+
+func Test__NodeQueueWorker_TerraformGeneratedActionQueueIsProcessed(t *testing.T) {
+	r := support.Setup(t)
+	defer r.Close()
+
+	amqpURL, _ := config.RabbitMQURL()
+	worker := NewNodeQueueWorker(r.Registry, amqpURL)
+	logger := log.NewEntry(log.New())
+
+	integration := buildTerraformQueueWorkerTestIntegration(t)
+	r.Registry.Integrations[integration.Name()] = integration
+
+	triggerNode := "trigger-1"
+	componentNode := "terraform-account-create"
+	actionName := spterraform.TerraformIntegrationName("tfacct") + ".account.create"
+	canvas, _ := support.CreateCanvas(
+		t,
+		r.Organization.ID,
+		r.User,
+		[]models.CanvasNode{
+			{
+				NodeID: triggerNode,
+				Type:   models.NodeTypeTrigger,
+				Ref:    datatypes.NewJSONType(models.NodeRef{Trigger: &models.TriggerRef{Name: "start"}}),
+			},
+			{
+				NodeID: componentNode,
+				Type:   models.NodeTypeComponent,
+				Ref:    datatypes.NewJSONType(models.NodeRef{Component: &models.ComponentRef{Name: actionName}}),
+			},
+		},
+		[]models.Edge{
+			{SourceID: triggerNode, TargetID: componentNode, Channel: "default"},
+		},
+	)
+
+	rootEvent := support.EmitCanvasEventForNode(t, canvas.ID, triggerNode, "default", nil)
+	support.CreateQueueItem(t, canvas.ID, componentNode, rootEvent.ID, rootEvent.ID)
+
+	node, err := models.FindCanvasNode(database.Conn(), canvas.ID, componentNode)
+	require.NoError(t, err)
+
+	err = worker.LockAndProcessNode(logger, *node)
+	require.NoError(t, err)
+
+	executions, err := models.ListNodeExecutions(canvas.ID, componentNode, nil, nil, 10, nil)
+	require.NoError(t, err)
+	require.Len(t, executions, 1)
+	assert.Equal(t, models.CanvasNodeExecutionStatePending, executions[0].State)
+	assert.Equal(t, rootEvent.ID, executions[0].EventID)
+	assert.Equal(t, rootEvent.ID, executions[0].RootEventID)
+
+	queueItems, err := models.ListNodeQueueItems(canvas.ID, componentNode, 10, nil)
+	require.NoError(t, err)
+	assert.Empty(t, queueItems)
 }
 
 func Test__NodeQueueWorker_BlueprintNodeQueueIsProcessed(t *testing.T) {
@@ -783,4 +842,48 @@ func Test__WorkflowNodeQueueWorker_ConfigurationBuildFailure_PropagateToParent(t
 	assert.Equal(t, models.CanvasNodeExecutionStateFinished, updatedParent.State)
 	assert.Equal(t, models.CanvasNodeExecutionResultFailed, updatedParent.Result)
 	assert.Equal(t, models.CanvasNodeExecutionResultReasonError, updatedParent.ResultReason)
+}
+
+func buildTerraformQueueWorkerTestIntegration(t *testing.T) core.Integration {
+	t.Helper()
+
+	rawString, err := json.Marshal("string")
+	require.NoError(t, err)
+
+	integration, dropped, err := spterraform.BuildIntegration(
+		config.TerraformProviderIntegration{
+			Name:    "tfacct",
+			Label:   "Terraform Account",
+			Source:  "registry.terraform.io/example/tfacct",
+			Version: "1.0.0",
+			Expose:  config.TerraformProviderExpose{Resources: "*"},
+		},
+		spterraform.ProviderSchemasFile{
+			ProviderSchemas: map[string]spterraform.ProviderSchema{
+				"registry.terraform.io/example/tfacct": {
+					Provider: spterraform.SchemaRepresentation{Block: spterraform.Block{}},
+					ResourceSchemas: map[string]spterraform.SchemaRepresentation{
+						"tfacct_account": {
+							Block: spterraform.Block{
+								Attributes: map[string]spterraform.Attribute{
+									"id": {
+										Type:     rawString,
+										Computed: true,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		nil,
+		nil,
+		nil,
+		nil,
+	)
+	require.NoError(t, err)
+	require.Empty(t, dropped)
+
+	return integration
 }

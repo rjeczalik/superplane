@@ -308,7 +308,7 @@ function OpenBuildingBlocksSidebar({
         <div className="relative flex-1 min-h-0 gap-2 py-6">
           {sortedCategories.map((category) => (
             <CategorySection
-              key={category.name}
+              key={category.id || category.name}
               category={category}
               integrations={integrations}
               showIntegrationSetupStatus={showIntegrationSetupStatus}

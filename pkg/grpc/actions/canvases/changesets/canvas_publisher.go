@@ -397,12 +397,15 @@ func (p *CanvasPublisher) setupTrigger(ctx context.Context, node *models.CanvasN
 
 	logger := logging.ForNode(*node)
 	triggerCtx := core.TriggerContext{
-		Configuration: node.Configuration.Data(),
-		HTTP:          p.options.Registry.HTTPContextInTransaction(p.tx),
-		Metadata:      contexts.NewNodeMetadataContext(p.tx, node),
-		Requests:      contexts.NewNodeRequestContext(p.tx, node),
-		Events:        contexts.NewEventContext(p.tx, node, nil),
-		Webhook:       contexts.NewNodeWebhookContext(ctx, p.tx, p.options.Encryptor, node, p.options.WebhookBaseURL),
+		OrganizationID: p.options.OrgID.String(),
+		WorkflowID:     node.WorkflowID.String(),
+		NodeID:         node.NodeID,
+		Configuration:  node.Configuration.Data(),
+		HTTP:           p.options.Registry.HTTPContextInTransaction(p.tx),
+		Metadata:       contexts.NewNodeMetadataContext(p.tx, node),
+		Requests:       contexts.NewNodeRequestContext(p.tx, node),
+		Events:         contexts.NewEventContext(p.tx, node, nil),
+		Webhook:        contexts.NewNodeWebhookContext(ctx, p.tx, p.options.Encryptor, node, p.options.WebhookBaseURL),
 	}
 
 	if node.AppInstallationID != nil {

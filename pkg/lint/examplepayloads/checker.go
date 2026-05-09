@@ -74,6 +74,16 @@ var coreTriggerNames = map[string]bool{
 	"start": true,
 }
 
+// Generated Terraform actions are registered from operator/provider schema at
+// startup, so there is no single static Name()/ExampleOutput() pair to validate.
+var dynamicGeneratedTypes = map[string]map[string]bool{
+	"github.com/superplanehq/superplane/pkg/integrations/terraform": {
+		"GeneratedAction":          true,
+		"GeneratedResourceAction":  true,
+		"GeneratedResourceTrigger": true,
+	},
+}
+
 type exampleRecord struct {
 	Name    string
 	Kind    nodeKind
@@ -324,11 +334,17 @@ func newPackageAnalyzer(pkg *loadedPackage) *packageAnalyzer {
 
 			switch fn.Name.Name {
 			case "ExampleOutput":
+				if dynamicGeneratedTypes[pkg.ImportPath][recvType] {
+					continue
+				}
 				meta := analyzer.typeMetas[recvType]
 				meta.Kind = nodeKindAction
 				meta.RecvType = recvType
 				analyzer.typeMetas[recvType] = meta
 			case "ExampleData":
+				if dynamicGeneratedTypes[pkg.ImportPath][recvType] {
+					continue
+				}
 				meta := analyzer.typeMetas[recvType]
 				meta.Kind = nodeKindTrigger
 				meta.RecvType = recvType

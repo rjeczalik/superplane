@@ -170,6 +170,10 @@ func (w *NodeExecutor) LockAndProcessNodeExecution(id uuid.UUID) error {
 		newEvents = append(newEvents, events...)
 	}
 
+	var execution *models.CanvasNodeExecution
+	var node *models.CanvasNode
+	var executeAction bool
+
 	err := database.Conn().Transaction(func(tx *gorm.DB) error {
 		//
 		// Try to lock the execution record for update.
@@ -190,17 +194,47 @@ func (w *NodeExecutor) LockAndProcessNodeExecution(id uuid.UUID) error {
 		// Note: We use SKIP LOCKED to avoid waiting on locked records.
 		//
 
-		execution, err := models.LockPendingNodeExecutionInActiveCanvas(tx, id)
+		lockedExecution, err := models.LockPendingNodeExecutionInActiveCanvas(tx, id)
 		if err != nil {
 			w.logger.Debugf("Execution %s already being processed - skipping", id.String())
 			return ErrRecordLocked
 		}
 
-		return w.processNodeExecution(tx, execution, onNewEvents)
+		lockedNode, err := models.FindCanvasNode(tx, lockedExecution.WorkflowID, lockedExecution.NodeID)
+		if err != nil {
+			return err
+		}
+
+		if lockedNode.Type == models.NodeTypeBlueprint {
+			return w.executeBlueprintNode(tx, lockedExecution, lockedNode)
+		}
+
+		err = lockedExecution.StartInTransaction(tx)
+		if err != nil {
+			logger := logging.WithExecution(
+				logging.WithNode(w.logger, *lockedNode),
+				lockedExecution,
+				nil,
+			)
+			logger.Errorf("failed to start execution: %v", err)
+			return fmt.Errorf("failed to start execution: %w", err)
+		}
+
+		execution = lockedExecution
+		node = lockedNode
+		executeAction = true
+		return nil
 	})
 
 	if err != nil {
 		return err
+	}
+
+	if executeAction {
+		err = w.executeActionNode(database.Conn(), execution, node, onNewEvents)
+		if err != nil {
+			return err
+		}
 	}
 
 	for _, event := range newEvents {
@@ -208,19 +242,6 @@ func (w *NodeExecutor) LockAndProcessNodeExecution(id uuid.UUID) error {
 	}
 
 	return nil
-}
-
-func (w *NodeExecutor) processNodeExecution(tx *gorm.DB, execution *models.CanvasNodeExecution, onNewEvents func([]models.CanvasEvent)) error {
-	node, err := models.FindCanvasNode(tx, execution.WorkflowID, execution.NodeID)
-	if err != nil {
-		return err
-	}
-
-	if node.Type == models.NodeTypeBlueprint {
-		return w.executeBlueprintNode(tx, execution, node)
-	}
-
-	return w.executeActionNode(tx, execution, node, onNewEvents)
 }
 
 func (w *NodeExecutor) executeBlueprintNode(tx *gorm.DB, execution *models.CanvasNodeExecution, node *models.CanvasNode) error {
@@ -325,31 +346,28 @@ func (w *NodeExecutor) executeActionNode(tx *gorm.DB, execution *models.CanvasNo
 		nil,
 	)
 
-	err := execution.StartInTransaction(tx)
-	if err != nil {
-		logger.Errorf("failed to start execution: %v", err)
-		return fmt.Errorf("failed to start execution: %w", err)
-	}
-
 	ref := node.Ref.Data()
 	action, err := w.registry.GetAction(ref.Component.Name)
 	if err != nil {
-		logger.Errorf("action %s not found: %v", ref.Component.Name, err)
-		return fmt.Errorf("action %s not found: %w", ref.Component.Name, err)
+		message := fmt.Sprintf("action %s not found: %v", ref.Component.Name, err)
+		logger.Error(message)
+		return execution.FailInTransaction(tx, models.CanvasNodeExecutionResultReasonError, message)
 	}
 
 	inputEvent, err := models.FindCanvasEventInTransaction(tx, execution.EventID)
 	if err != nil {
-		logger.Errorf("failed to find input event: %v", err)
-		return fmt.Errorf("failed to find input event: %w", err)
+		message := fmt.Sprintf("failed to find input event: %v", err)
+		logger.Error(message)
+		return execution.FailInTransaction(tx, models.CanvasNodeExecutionResultReasonError, message)
 	}
 
 	input := inputEvent.Data.Data()
 
 	workflow, err := models.FindCanvasWithoutOrgScopeInTransaction(tx, node.WorkflowID)
 	if err != nil {
-		logger.Errorf("failed to find workflow: %v", err)
-		return fmt.Errorf("failed to find workflow: %v", err)
+		message := fmt.Sprintf("failed to find workflow: %v", err)
+		logger.Error(message)
+		return execution.FailInTransaction(tx, models.CanvasNodeExecutionResultReasonError, message)
 	}
 
 	builder := contexts.NewNodeConfigurationBuilder(tx, execution.WorkflowID).

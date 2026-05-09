@@ -60,6 +60,11 @@ message IntegrationDefinition {
   //
   repeated Configuration.Field configuration = 8;
   string instructions = 9;
+
+  // Origin metadata for integrations loaded from external sources.
+  string origin  = 10;
+  string source  = 11;
+  string version = 12;
 }
 
 message CapabilityDefinition {

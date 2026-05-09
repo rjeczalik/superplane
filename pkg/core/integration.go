@@ -269,6 +269,15 @@ type BrowserAction struct {
 	FormFields  map[string]string
 }
 
+// OriginInfo is implemented by integrations that originate from external
+// sources (e.g. Terraform providers). Native integrations do not implement
+// this interface and default to origin "native" with empty source/version.
+type OriginInfo interface {
+	Origin() string
+	Source() string
+	Version() string
+}
+
 type HTTPRequestContext struct {
 	Logger           *logrus.Entry
 	Request          *http.Request

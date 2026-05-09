@@ -26,7 +26,7 @@ ENV GOPROXY="https://proxy.golang.org,direct"
 ENV PLAYWRIGHT_BROWSERS_PATH="/ms-playwright"
 
 RUN apt-get update && \
-  apt-get install -y --no-install-recommends bash ca-certificates make unzip && \
+  apt-get install -y --no-install-recommends bash ca-certificates curl gnupg make unzip && \
   apt-get clean && \
   rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 
@@ -110,6 +110,10 @@ HEALTHCHECK NONE
 
 WORKDIR /app
 RUN chown nobody /app
+
+# Create default provider cache directory writable by the runtime user
+RUN mkdir -p /var/lib/superplane/tfproviders \
+ && chown -R nobody:root /var/lib/superplane
 
 # Copy every artifact needed to run the application from previous stages
 COPY --from=builder --chown=nobody:root /usr/bin/createdb /usr/bin/createdb

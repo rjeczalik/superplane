@@ -1,3 +1,14 @@
+// Package registry provides the central registry for integrations, actions,
+// triggers, and other runtime-discoverable components.
+//
+// Registry invariant: instance maps (Integrations, Actions, Triggers,
+// SetupProviders, WebhookHandlers, Widgets) are written only during Init(),
+// and read-only after the constructor returns. No post-construction mutation.
+// Code that adds dynamic registration paths must either (a) register before
+// NewRegistryWithOptions so Init() copies the global maps, or (b) introduce
+// instance-level synchronization.
+//
+// `go test -race ./pkg/registry/...` enforces this.
 package registry
 
 import (
@@ -317,14 +328,17 @@ func (r *Registry) GetIntegration(name string) (core.Integration, error) {
 }
 
 func (r *Registry) SupportsNewSetupFlow(integrationName string) bool {
-	//
-	// For now, the new setup flow should only be available in development.
-	// We do not want to allow users to use it in production yet.
-	// We will remove this once we are more confident the new setup flow
-	// won't have any major changes.
-	//
 	setupProvider, _ := r.GetSetupProvider(integrationName)
-	return setupProvider != nil && r.AppEnv == "development"
+	if setupProvider == nil {
+		return false
+	}
+
+	if r.AppEnv == "development" {
+		return true
+	}
+
+	productionProvider, ok := setupProvider.(core.ProductionSetupFlowProvider)
+	return ok && productionProvider.SupportsSetupFlowInProduction()
 }
 
 func (r *Registry) GetSetupProvider(name string) (core.IntegrationSetupProvider, error) {

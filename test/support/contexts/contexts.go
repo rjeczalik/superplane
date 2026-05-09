@@ -222,6 +222,10 @@ func (c *IntegrationContext) LegacySetup() bool {
 	return !c.NewSetupFlow
 }
 
+func (c *IntegrationContext) Capabilities() []core.CapabilityState {
+	return nil
+}
+
 func (c *IntegrationContext) Properties() core.IntegrationPropertyStorage {
 	return &IntegrationPropertyStorage{parentContext: c}
 }

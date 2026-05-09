@@ -2,20 +2,27 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"github.com/superplanehq/superplane/pkg/agents"
 	"github.com/superplanehq/superplane/pkg/agents/anthropic"
 	"github.com/superplanehq/superplane/pkg/authorization"
 	"github.com/superplanehq/superplane/pkg/config"
 	"github.com/superplanehq/superplane/pkg/crypto"
+	"github.com/superplanehq/superplane/pkg/database"
 	grpc "github.com/superplanehq/superplane/pkg/grpc"
 	agentsActions "github.com/superplanehq/superplane/pkg/grpc/actions/agents"
+	terraformintegration "github.com/superplanehq/superplane/pkg/integrations/terraform"
+	terraformintegrationregistry "github.com/superplanehq/superplane/pkg/integrations/terraform/registry"
 	"github.com/superplanehq/superplane/pkg/jwt"
+	"github.com/superplanehq/superplane/pkg/models"
 	"github.com/superplanehq/superplane/pkg/networkpolicy"
 	"github.com/superplanehq/superplane/pkg/oidc"
 	"github.com/superplanehq/superplane/pkg/public"
@@ -25,6 +32,7 @@ import (
 	"github.com/superplanehq/superplane/pkg/templates"
 	"github.com/superplanehq/superplane/pkg/usage"
 	"github.com/superplanehq/superplane/pkg/workers"
+	workercontexts "github.com/superplanehq/superplane/pkg/workers/contexts"
 	"gorm.io/gorm"
 
 	// Import integrations, components and triggers to register them via init()
@@ -119,7 +127,7 @@ func buildAgentService(authService authorization.Authorization, jwtSigner *jwt.S
 	return provider, service
 }
 
-func startWorkers(encryptor crypto.Encryptor, registry *registry.Registry, oidcProvider oidc.Provider, baseURL string, authService authorization.Authorization, agentProvider agents.Provider) {
+func startWorkers(encryptor crypto.Encryptor, registry *registry.Registry, oidcProvider oidc.Provider, baseURL string, authService authorization.Authorization, agentProvider agents.Provider, terraformRuntimeFactory terraformintegration.ConfiguredRuntimeFactory, terraformManagedResourceStore terraformintegration.ManagedResourceStore, terraformProviderConfigLoader workers.TerraformProviderConfigLoader) {
 	log.Println("Starting Workers")
 
 	rabbitMQURL, err := config.RabbitMQURL()
@@ -233,6 +241,60 @@ func startWorkers(encryptor crypto.Encryptor, registry *registry.Registry, oidcP
 		}
 	}
 
+	if os.Getenv("START_TERRAFORM_POLLING_WORKER") == "yes" {
+		log.Println("Starting Terraform Polling Worker")
+		w := workers.NewTerraformPollingWorker(terraformManagedResourceStore, terraformRuntimeFactory, terraformProviderConfigLoader)
+		go w.Start(context.Background())
+	}
+
+	if os.Getenv("START_TERRAFORM_EVENT_DISPATCHER") == "yes" {
+		log.Println("Starting Terraform Event Dispatcher Worker")
+		w := workers.NewTerraformEventDispatcherWorker()
+		go w.Start(context.Background())
+	}
+
+	if os.Getenv("START_TERRAFORM_ORPHAN_RECOVERY_WORKER") == "yes" {
+		log.Println("Starting Terraform Orphan Recovery Worker")
+		w := workers.NewTerraformOrphanRecoveryWorker(terraformManagedResourceStore, terraformRuntimeFactory, terraformProviderConfigLoader)
+		go w.Start(context.Background())
+	}
+
+	if os.Getenv("START_TERRAFORM_EVENT_RETENTION_WORKER") == "yes" {
+		log.Println("Starting Terraform Event Retention Worker")
+		w := workers.NewTerraformEventRetentionWorker()
+		go w.Start(context.Background())
+	}
+}
+
+type terraformProviderConfigLoader struct {
+	encryptor crypto.Encryptor
+}
+
+func (l terraformProviderConfigLoader) LoadProviderConfig(ctx context.Context, integrationID string) (map[string]any, error) {
+	id, err := uuid.Parse(integrationID)
+	if err != nil {
+		return nil, err
+	}
+	var integration models.Integration
+	if err := database.Conn().WithContext(ctx).Where("id = ?", id).First(&integration).Error; err != nil {
+		return nil, err
+	}
+	storage := workercontexts.NewIntegrationSecretStorage(database.Conn().WithContext(ctx), l.encryptor, &integration)
+	raw, err := storage.Get("terraformProviderConfig")
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			return map[string]any{}, nil
+		}
+		return nil, err
+	}
+	if raw == "" {
+		return map[string]any{}, nil
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal([]byte(raw), &cfg); err != nil {
+		return nil, err
+	}
+	return cfg, nil
 }
 
 func startEmailConsumers(rabbitMQURL string, encryptor crypto.Encryptor, baseURL string, authService authorization.Authorization) {
@@ -433,12 +495,16 @@ func Start() {
 
 	log.SetLevel(log.DebugLevel)
 
-	var encryptorInstance crypto.Encryptor
-	if os.Getenv("NO_ENCRYPTION") == "yes" {
-		log.Warn("NO_ENCRYPTION is set to yes, using NoOpEncryptor")
-		encryptorInstance = crypto.NewNoOpEncryptor()
-	} else {
-		encryptorInstance = crypto.NewAESGCMEncryptor([]byte(encryptionKey))
+	encryptorInstance, err := buildEncryptor(os.Getenv("APP_ENV"), encryptionKey, os.Getenv("NO_ENCRYPTION"))
+	if err != nil {
+		log.Fatalf("failed to initialize encryption: %v", err)
+	}
+	terraformStateEncryptors := terraformintegration.TerraformStateEncryptorsFromLegacy(encryptorInstance)
+	if os.Getenv("NO_ENCRYPTION") != "yes" {
+		terraformStateEncryptors, err = terraformintegration.NewTerraformStateEncryptors([]byte(encryptionKey))
+		if err != nil {
+			log.Fatalf("failed to initialize terraform state encryption: %v", err)
+		}
 	}
 
 	authService, err := authorization.NewAuthService()
@@ -472,6 +538,32 @@ func Start() {
 	oidcProvider, err := oidc.NewProviderFromKeyDir(webhooksBaseURL, oidcKeysPath)
 	if err != nil {
 		panic(fmt.Sprintf("failed to load OIDC keys: %v", err))
+	}
+
+	terraformRuntimeFactory, err := terraformintegration.NewProviderRuntimeFactory(terraformintegration.ProviderRuntimeFactoryOptions{
+		CacheDir:            config.TerraformProviderCacheDir(),
+		AppEnv:              appEnv,
+		GPGVerifyMode:       os.Getenv("TERRAFORM_PROVIDER_GPG_VERIFY"),
+		GPGKeyStore:         terraformintegrationregistry.NewKeyPinStore(database.Conn()),
+		PluginIsolationMode: os.Getenv("TERRAFORM_PROVIDER_PROCESS_ISOLATION"),
+	})
+	if err != nil {
+		log.Fatalf("failed to initialize terraform provider runtime factory: %v", err)
+	}
+	terraformManagedResourceStore := terraformintegration.NewGormManagedResourceStore(database.Conn(), terraformStateEncryptors)
+
+	if err := terraformintegration.RegisterConfiguredProviders(context.Background(), terraformintegration.RegisterOptions{
+		CacheDir:             config.TerraformProviderCacheDir(),
+		ManagedResourceStore: terraformManagedResourceStore,
+		Encryptor:            encryptorInstance,
+		Logger:               log.WithField("component", "terraform-providers"),
+		RuntimeFactory:       terraformRuntimeFactory,
+		AppEnv:               appEnv,
+		GPGVerifyMode:        os.Getenv("TERRAFORM_PROVIDER_GPG_VERIFY"),
+		GPGKeyStore:          terraformintegrationregistry.NewKeyPinStore(database.Conn()),
+		PluginIsolationMode:  os.Getenv("TERRAFORM_PROVIDER_PROCESS_ISOLATION"),
+	}); err != nil {
+		log.Fatalf("failed to register configured terraform providers: %v", err)
 	}
 
 	registry, err := registry.NewRegistryWithOptions(registry.RegistryOptions{
@@ -521,11 +613,22 @@ func Start() {
 		go startInternalAPI(baseURL, webhooksBaseURL, basePath, encryptorInstance, jwtSigner, authService, registry, oidcProvider, agentService)
 	}
 
-	startWorkers(encryptorInstance, registry, oidcProvider, baseURL, authService, agentProvider)
+	startWorkers(encryptorInstance, registry, oidcProvider, baseURL, authService, agentProvider, terraformRuntimeFactory, terraformManagedResourceStore, terraformProviderConfigLoader{encryptor: encryptorInstance})
 
 	log.Println("SuperPlane is UP.")
 
 	select {}
+}
+
+func buildEncryptor(appEnv, encryptionKey, noEncryption string) (crypto.Encryptor, error) {
+	if noEncryption == "yes" {
+		if appEnv == "production" {
+			return nil, fmt.Errorf("NO_ENCRYPTION=yes is not allowed in production")
+		}
+		log.Warn("NO_ENCRYPTION is set to yes, using NoOpEncryptor")
+		return crypto.NewNoOpEncryptor(), nil
+	}
+	return crypto.NewAESGCMEncryptor([]byte(encryptionKey)), nil
 }
 
 // getWebhookBaseURL returns the webhook base URL, using the same pattern as SyncContext.

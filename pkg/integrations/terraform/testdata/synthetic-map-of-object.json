@@ -1,0 +1,39 @@
+{
+  "format_version": "1.0",
+  "provider_schemas": {
+    "registry.terraform.io/example/mapofobject": {
+      "provider": {
+        "version": 0,
+        "block": {
+          "attributes": {},
+          "description_kind": "markdown"
+        }
+      },
+      "resource_schemas": {
+        "mapofobject_resource": {
+          "version": 0,
+          "block": {
+            "attributes": {
+              "mapping": {
+                "type": [
+                  "map",
+                  [
+                    "object",
+                    {
+                      "name": "string"
+                    }
+                  ]
+                ],
+                "description": "A map of objects",
+                "description_kind": "markdown",
+                "optional": true
+              }
+            },
+            "description_kind": "markdown"
+          }
+        }
+      },
+      "data_source_schemas": {}
+    }
+  }
+}

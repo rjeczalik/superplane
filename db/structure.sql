@@ -460,6 +460,153 @@ CREATE TABLE public.secrets (
 
 
 --
+-- Name: terraform_managed_resource_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.terraform_managed_resource_events (
+    id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
+    managed_resource_id uuid NOT NULL,
+    organization_id uuid NOT NULL,
+    canvas_id uuid NOT NULL,
+    integration_id uuid NOT NULL,
+    resource_type text NOT NULL,
+    event_type text NOT NULL,
+    state text DEFAULT 'pending'::text NOT NULL,
+    outputs_hash text,
+    outputs jsonb DEFAULT '{}'::jsonb NOT NULL,
+    hash_input jsonb DEFAULT '{}'::jsonb NOT NULL,
+    metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
+    dispatch_attempts integer DEFAULT 0 NOT NULL,
+    last_dispatch_error text,
+    processed_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_tmre_event_type CHECK ((event_type = ANY (ARRAY['resource_created'::text, 'resource_updated'::text, 'resource_replaced'::text, 'resource_deleted'::text, 'resource_forgotten'::text, 'resource_missing'::text, 'resource_externally_deleted'::text, 'resource_recovered'::text]))),
+    CONSTRAINT chk_tmre_state CHECK ((state = ANY (ARRAY['pending'::text, 'processed'::text])))
+);
+
+
+--
+-- Name: terraform_managed_resource_states; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.terraform_managed_resource_states (
+    id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
+    managed_resource_id uuid NOT NULL,
+    state_ciphertext bytea NOT NULL,
+    state_nonce bytea NOT NULL,
+    last_config_ciphertext bytea NOT NULL,
+    last_config_nonce bytea NOT NULL,
+    schema_hash text NOT NULL,
+    encryption_version integer DEFAULT 1 NOT NULL,
+    state_format text NOT NULL,
+    lock_version bigint DEFAULT 0 NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: terraform_managed_resource_subscription_cursors; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.terraform_managed_resource_subscription_cursors (
+    id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
+    subscription_id uuid NOT NULL,
+    managed_resource_id uuid NOT NULL,
+    last_outputs_hash text,
+    last_event_id uuid,
+    last_emitted_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: terraform_managed_resource_subscriptions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.terraform_managed_resource_subscriptions (
+    id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
+    organization_id uuid NOT NULL,
+    canvas_id uuid NOT NULL,
+    integration_id uuid NOT NULL,
+    node_id text NOT NULL,
+    resource_type text NOT NULL,
+    managed_resource_id uuid,
+    idempotency_key text,
+    changed_fields jsonb DEFAULT '[]'::jsonb NOT NULL,
+    poll_interval_secs integer DEFAULT 300 NOT NULL,
+    backoff_secs integer DEFAULT 0 NOT NULL,
+    last_poll_at timestamp with time zone,
+    enabled boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    CONSTRAINT chk_tmrs_backoff_nonnegative CHECK ((backoff_secs >= 0)),
+    CONSTRAINT chk_tmrs_poll_interval_positive CHECK ((poll_interval_secs > 0))
+);
+
+
+--
+-- Name: terraform_managed_resources; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.terraform_managed_resources (
+    id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
+    managed_resource_id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
+    organization_id uuid NOT NULL,
+    integration_id uuid NOT NULL,
+    canvas_id uuid NOT NULL,
+    created_by_node_id text,
+    created_by_execution_id uuid,
+    created_by_event_id uuid,
+    root_event_id uuid,
+    provider_name text NOT NULL,
+    provider_source text NOT NULL,
+    provider_version text NOT NULL,
+    resource_type text NOT NULL,
+    idempotency_key text,
+    remote_id text,
+    display_name text,
+    status text NOT NULL,
+    health text NOT NULL,
+    last_operation text,
+    retention_policy jsonb DEFAULT '{}'::jsonb NOT NULL,
+    recovery_hints jsonb DEFAULT '{}'::jsonb NOT NULL,
+    last_refreshed_at timestamp with time zone,
+    missing_count integer DEFAULT 0 NOT NULL,
+    error_count integer DEFAULT 0 NOT NULL,
+    orphan_risk boolean DEFAULT false NOT NULL,
+    last_error text,
+    last_error_at timestamp with time zone,
+    current_operation_id uuid,
+    operation_started_at timestamp with time zone,
+    operation_expires_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    CONSTRAINT chk_tmr_health CHECK ((health = ANY (ARRAY['healthy'::text, 'degraded'::text, 'unreachable'::text]))),
+    CONSTRAINT chk_tmr_status CHECK ((status = ANY (ARRAY['creating'::text, 'ready'::text, 'updating'::text, 'deleting'::text, 'missing'::text, 'deleted'::text, 'deleted_external'::text])))
+);
+
+
+--
+-- Name: terraform_provider_gpg_keys; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.terraform_provider_gpg_keys (
+    id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
+    provider_source text NOT NULL,
+    key_id text NOT NULL,
+    fingerprint text NOT NULL,
+    ascii_armor text NOT NULL,
+    trust_mode text NOT NULL,
+    pinned_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
 -- Name: users; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1013,6 +1160,70 @@ ALTER TABLE ONLY public.secrets
 
 
 --
+-- Name: terraform_managed_resource_events terraform_managed_resource_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.terraform_managed_resource_events
+    ADD CONSTRAINT terraform_managed_resource_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: terraform_managed_resource_states terraform_managed_resource_states_managed_resource_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.terraform_managed_resource_states
+    ADD CONSTRAINT terraform_managed_resource_states_managed_resource_id_key UNIQUE (managed_resource_id);
+
+
+--
+-- Name: terraform_managed_resource_states terraform_managed_resource_states_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.terraform_managed_resource_states
+    ADD CONSTRAINT terraform_managed_resource_states_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: terraform_managed_resource_subscription_cursors terraform_managed_resource_subscription_cursors_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.terraform_managed_resource_subscription_cursors
+    ADD CONSTRAINT terraform_managed_resource_subscription_cursors_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: terraform_managed_resource_subscriptions terraform_managed_resource_subscriptions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.terraform_managed_resource_subscriptions
+    ADD CONSTRAINT terraform_managed_resource_subscriptions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: terraform_managed_resources terraform_managed_resources_managed_resource_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.terraform_managed_resources
+    ADD CONSTRAINT terraform_managed_resources_managed_resource_id_key UNIQUE (managed_resource_id);
+
+
+--
+-- Name: terraform_managed_resources terraform_managed_resources_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.terraform_managed_resources
+    ADD CONSTRAINT terraform_managed_resources_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: terraform_provider_gpg_keys terraform_provider_gpg_keys_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.terraform_provider_gpg_keys
+    ADD CONSTRAINT terraform_provider_gpg_keys_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: group_metadata uq_group_metadata_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1363,6 +1574,104 @@ CREATE INDEX idx_organizations_deleted_at ON public.organizations USING btree (d
 --
 
 CREATE INDEX idx_role_metadata_lookup ON public.role_metadata USING btree (role_name, domain_type, domain_id);
+
+
+--
+-- Name: idx_tf_provider_gpg_keys_source; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_tf_provider_gpg_keys_source ON public.terraform_provider_gpg_keys USING btree (provider_source);
+
+
+--
+-- Name: idx_tf_provider_gpg_keys_source_fingerprint; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_tf_provider_gpg_keys_source_fingerprint ON public.terraform_provider_gpg_keys USING btree (provider_source, fingerprint);
+
+
+--
+-- Name: idx_tmr_canvas_integration_resource_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_tmr_canvas_integration_resource_status ON public.terraform_managed_resources USING btree (canvas_id, integration_id, resource_type, status);
+
+
+--
+-- Name: idx_tmr_created_by_execution_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_tmr_created_by_execution_id ON public.terraform_managed_resources USING btree (created_by_execution_id);
+
+
+--
+-- Name: idx_tmr_idempotency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_tmr_idempotency ON public.terraform_managed_resources USING btree (canvas_id, integration_id, resource_type, idempotency_key) WHERE ((idempotency_key IS NOT NULL) AND (deleted_at IS NULL));
+
+
+--
+-- Name: idx_tmr_operation_lease; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_tmr_operation_lease ON public.terraform_managed_resources USING btree (current_operation_id, operation_expires_at) WHERE (current_operation_id IS NOT NULL);
+
+
+--
+-- Name: idx_tmr_organization_integration; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_tmr_organization_integration ON public.terraform_managed_resources USING btree (organization_id, integration_id);
+
+
+--
+-- Name: idx_tmr_poll_schedule; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_tmr_poll_schedule ON public.terraform_managed_resources USING btree (status, last_refreshed_at) WHERE (deleted_at IS NULL);
+
+
+--
+-- Name: idx_tmre_pending; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_tmre_pending ON public.terraform_managed_resource_events USING btree (state, created_at) WHERE (state = 'pending'::text);
+
+
+--
+-- Name: idx_tmre_resource_created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_tmre_resource_created_at ON public.terraform_managed_resource_events USING btree (managed_resource_id, created_at);
+
+
+--
+-- Name: idx_tmrs_canvas_integration_resource; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_tmrs_canvas_integration_resource ON public.terraform_managed_resource_subscriptions USING btree (canvas_id, integration_id, resource_type);
+
+
+--
+-- Name: idx_tmrs_cursor_subscription_resource; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_tmrs_cursor_subscription_resource ON public.terraform_managed_resource_subscription_cursors USING btree (subscription_id, managed_resource_id);
+
+
+--
+-- Name: idx_tmrs_managed_resource; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_tmrs_managed_resource ON public.terraform_managed_resource_subscriptions USING btree (managed_resource_id) WHERE (managed_resource_id IS NOT NULL);
+
+
+--
+-- Name: idx_tmrs_node_resource_unique; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_tmrs_node_resource_unique ON public.terraform_managed_resource_subscriptions USING btree (node_id, canvas_id, integration_id, resource_type) WHERE (deleted_at IS NULL);
 
 
 --
@@ -1757,6 +2066,14 @@ ALTER TABLE ONLY public.canvas_memories
 
 
 --
+-- Name: terraform_managed_resource_subscriptions fk_tmrs_workflow_node; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.terraform_managed_resource_subscriptions
+    ADD CONSTRAINT fk_tmrs_workflow_node FOREIGN KEY (canvas_id, node_id) REFERENCES public.workflow_nodes(workflow_id, node_id);
+
+
+--
 -- Name: workflow_node_execution_kvs fk_wnek_workflow; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1826,6 +2143,126 @@ ALTER TABLE ONLY public.organization_invitations
 
 ALTER TABLE ONLY public.organization_invite_links
     ADD CONSTRAINT organization_invite_links_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE CASCADE;
+
+
+--
+-- Name: terraform_managed_resource_events terraform_managed_resource_events_managed_resource_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.terraform_managed_resource_events
+    ADD CONSTRAINT terraform_managed_resource_events_managed_resource_id_fkey FOREIGN KEY (managed_resource_id) REFERENCES public.terraform_managed_resources(managed_resource_id) ON DELETE CASCADE;
+
+
+--
+-- Name: terraform_managed_resource_states terraform_managed_resource_states_managed_resource_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.terraform_managed_resource_states
+    ADD CONSTRAINT terraform_managed_resource_states_managed_resource_id_fkey FOREIGN KEY (managed_resource_id) REFERENCES public.terraform_managed_resources(managed_resource_id) ON DELETE CASCADE;
+
+
+--
+-- Name: terraform_managed_resource_subscription_cursors terraform_managed_resource_subscripti_managed_resource_id_fkey1; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.terraform_managed_resource_subscription_cursors
+    ADD CONSTRAINT terraform_managed_resource_subscripti_managed_resource_id_fkey1 FOREIGN KEY (managed_resource_id) REFERENCES public.terraform_managed_resources(managed_resource_id) ON DELETE CASCADE;
+
+
+--
+-- Name: terraform_managed_resource_subscriptions terraform_managed_resource_subscriptio_managed_resource_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.terraform_managed_resource_subscriptions
+    ADD CONSTRAINT terraform_managed_resource_subscriptio_managed_resource_id_fkey FOREIGN KEY (managed_resource_id) REFERENCES public.terraform_managed_resources(managed_resource_id) ON DELETE CASCADE;
+
+
+--
+-- Name: terraform_managed_resource_subscription_cursors terraform_managed_resource_subscription_cu_subscription_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.terraform_managed_resource_subscription_cursors
+    ADD CONSTRAINT terraform_managed_resource_subscription_cu_subscription_id_fkey FOREIGN KEY (subscription_id) REFERENCES public.terraform_managed_resource_subscriptions(id) ON DELETE CASCADE;
+
+
+--
+-- Name: terraform_managed_resource_subscription_cursors terraform_managed_resource_subscription_curs_last_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.terraform_managed_resource_subscription_cursors
+    ADD CONSTRAINT terraform_managed_resource_subscription_curs_last_event_id_fkey FOREIGN KEY (last_event_id) REFERENCES public.terraform_managed_resource_events(id) ON DELETE SET NULL;
+
+
+--
+-- Name: terraform_managed_resource_subscriptions terraform_managed_resource_subscriptions_canvas_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.terraform_managed_resource_subscriptions
+    ADD CONSTRAINT terraform_managed_resource_subscriptions_canvas_id_fkey FOREIGN KEY (canvas_id) REFERENCES public.workflows(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: terraform_managed_resource_subscriptions terraform_managed_resource_subscriptions_integration_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.terraform_managed_resource_subscriptions
+    ADD CONSTRAINT terraform_managed_resource_subscriptions_integration_id_fkey FOREIGN KEY (integration_id) REFERENCES public.app_installations(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: terraform_managed_resource_subscriptions terraform_managed_resource_subscriptions_organization_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.terraform_managed_resource_subscriptions
+    ADD CONSTRAINT terraform_managed_resource_subscriptions_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: terraform_managed_resources terraform_managed_resources_canvas_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.terraform_managed_resources
+    ADD CONSTRAINT terraform_managed_resources_canvas_id_fkey FOREIGN KEY (canvas_id) REFERENCES public.workflows(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: terraform_managed_resources terraform_managed_resources_created_by_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.terraform_managed_resources
+    ADD CONSTRAINT terraform_managed_resources_created_by_event_id_fkey FOREIGN KEY (created_by_event_id) REFERENCES public.workflow_events(id) ON DELETE SET NULL;
+
+
+--
+-- Name: terraform_managed_resources terraform_managed_resources_created_by_execution_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.terraform_managed_resources
+    ADD CONSTRAINT terraform_managed_resources_created_by_execution_id_fkey FOREIGN KEY (created_by_execution_id) REFERENCES public.workflow_node_executions(id) ON DELETE SET NULL;
+
+
+--
+-- Name: terraform_managed_resources terraform_managed_resources_integration_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.terraform_managed_resources
+    ADD CONSTRAINT terraform_managed_resources_integration_id_fkey FOREIGN KEY (integration_id) REFERENCES public.app_installations(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: terraform_managed_resources terraform_managed_resources_organization_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.terraform_managed_resources
+    ADD CONSTRAINT terraform_managed_resources_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: terraform_managed_resources terraform_managed_resources_root_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.terraform_managed_resources
+    ADD CONSTRAINT terraform_managed_resources_root_event_id_fkey FOREIGN KEY (root_event_id) REFERENCES public.workflow_events(id) ON DELETE SET NULL;
 
 
 --

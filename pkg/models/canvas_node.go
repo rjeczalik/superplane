@@ -124,6 +124,11 @@ func DeleteCanvasNode(tx *gorm.DB, node CanvasNode) error {
 		return err
 	}
 
+	err = DisableManagedResourceSubscriptionsForNodeInTransaction(tx, node.WorkflowID, node.NodeID)
+	if err != nil {
+		return err
+	}
+
 	if node.WebhookID == nil {
 		return nil
 	}

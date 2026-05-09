@@ -23,6 +23,16 @@ p,/roles/org_admin,/org/*,integrations,create
 p,/roles/org_admin,/org/*,integrations,read
 p,/roles/org_admin,/org/*,integrations,update
 p,/roles/org_admin,/org/*,integrations,delete
+p,/roles/org_viewer,/org/*,managed_resources,read
+p,/roles/org_admin,/org/*,managed_resources,read
+p,/roles/org_admin,/org/*,managed_resources,create
+p,/roles/org_admin,/org/*,managed_resources,update
+p,/roles/org_admin,/org/*,managed_resources,delete
+p,/roles/org_owner,/org/*,managed_resources,read
+p,/roles/org_owner,/org/*,managed_resources,create
+p,/roles/org_owner,/org/*,managed_resources,update
+p,/roles/org_owner,/org/*,managed_resources,delete
+p,/roles/org_owner,/org/*,managed_resources,force_forget
 p,/roles/org_admin,/org/*,secrets,create
 p,/roles/org_admin,/org/*,secrets,read
 p,/roles/org_admin,/org/*,secrets,update

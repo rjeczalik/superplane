@@ -38,6 +38,8 @@ interface IntegrationTabsProps {
   isSavingProperty: (propertyName: string | undefined) => boolean;
   isSavingSecret: (secretName: string | undefined) => boolean;
   onApplyCapabilityChanges: (updates: IntegrationCapabilityState[]) => void | Promise<void>;
+  onReconfigure?: (secretName: string) => void;
+  isReconfiguring?: boolean;
 }
 
 function TabButton({
@@ -80,6 +82,8 @@ export function IntegrationTabs({
   isSavingProperty,
   isSavingSecret,
   onApplyCapabilityChanges,
+  onReconfigure,
+  isReconfiguring,
 }: IntegrationTabsProps) {
   return (
     <Tabs value={activeTab} onValueChange={(value) => onActiveTabChange(value as IntegrationTab)} className="w-full">
@@ -120,6 +124,8 @@ export function IntegrationTabs({
           settingsMutationBusy={integrationMutations.settingsMutationBusy}
           saveSecret={saveSecret}
           isSavingSecret={isSavingSecret}
+          onReconfigure={onReconfigure}
+          isReconfiguring={isReconfiguring}
         />
       </TabsContent>
 

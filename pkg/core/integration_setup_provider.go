@@ -10,6 +10,13 @@ import (
  * IntegrationSetupProvider is the contract for an integration to provide its setup flow.
  * Any changes to this interface should be documented in docs/design/integration-setup-flow.md.
  */
+// ProductionSetupFlowProvider is an optional interface that setup providers
+// can implement to opt into the new setup flow in production environments.
+// Without this interface, setup flows are only available in development.
+type ProductionSetupFlowProvider interface {
+	SupportsSetupFlowInProduction() bool
+}
+
 type IntegrationSetupProvider interface {
 
 	//
@@ -228,6 +235,18 @@ type CapabilityContext interface {
 type CapabilityGroup struct {
 	Label        string
 	Capabilities []Capability
+}
+
+// CapabilityStateAccessor is implemented by concrete IntegrationContext
+// implementations that can provide capability state. It is intentionally
+// not part of the IntegrationContext interface to avoid breaking changes.
+type CapabilityStateAccessor interface {
+	Capabilities() []CapabilityState
+}
+
+type CapabilityState struct {
+	Name  string
+	State IntegrationCapabilityState
 }
 
 type Capability struct {

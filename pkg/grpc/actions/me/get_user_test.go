@@ -58,6 +58,7 @@ func Test_ListUserPermissions(t *testing.T) {
 			"blueprints",
 			"service_accounts",
 			"agents",
+			"managed_resources",
 		}))
 	})
 }

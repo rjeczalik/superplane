@@ -11,6 +11,7 @@ import (
 	pb "github.com/superplanehq/superplane/pkg/protos/organizations"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"gorm.io/gorm/clause"
 )
 
 func DeleteOrganization(ctx context.Context, authService authorization.Authorization, orgID string) (*pb.DeleteOrganizationResponse, error) {
@@ -25,6 +26,23 @@ func DeleteOrganization(ctx context.Context, authService authorization.Authoriza
 	}
 
 	tx := database.Conn().Begin()
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("id = ?", organization.ID).
+		Where("deleted_at IS NULL").
+		First(&models.Organization{}).Error; err != nil {
+		tx.Rollback()
+		return nil, status.Error(codes.NotFound, "organization not found")
+	}
+	activeResources, err := models.CountActiveManagedResourcesForOrganizationInTransaction(tx, organization.ID)
+	if err != nil {
+		tx.Rollback()
+		return nil, status.Error(codes.Internal, "failed to count managed resources")
+	}
+	if activeResources > 0 {
+		tx.Rollback()
+		return nil, status.Errorf(codes.FailedPrecondition, "organization has %d active managed resources; delete or force-forget them first", activeResources)
+	}
+
 	err = models.SoftDeleteOrganizationInTransaction(tx, organization.ID.String())
 	if err != nil {
 		tx.Rollback()

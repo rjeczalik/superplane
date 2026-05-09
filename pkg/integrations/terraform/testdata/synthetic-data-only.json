@@ -1,0 +1,37 @@
+{
+  "format_version": "1.0",
+  "provider_schemas": {
+    "registry.terraform.io/example/dataonly": {
+      "provider": {
+        "version": 0,
+        "block": {
+          "attributes": {},
+          "description_kind": "markdown"
+        }
+      },
+      "resource_schemas": {},
+      "data_source_schemas": {
+        "dataonly_thing": {
+          "version": 0,
+          "block": {
+            "attributes": {
+              "id": {
+                "type": "string",
+                "description": "The ID",
+                "description_kind": "markdown",
+                "required": true
+              },
+              "value": {
+                "type": "string",
+                "description": "The value",
+                "description_kind": "markdown",
+                "computed": true
+              }
+            },
+            "description_kind": "markdown"
+          }
+        }
+      }
+    }
+  }
+}

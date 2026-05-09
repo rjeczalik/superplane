@@ -101,6 +101,7 @@ import { buildDraftNodeDiffSummary, hasDraftVersusLiveGraphDiff } from "./draftN
 import { prepareAnnotationNode } from "./lib/canvas-annotation-node";
 import { shouldPreserveDraftSpec } from "./lib/draft-canvas-sync";
 import { prepareComponentNode, prepareTriggerNode } from "./lib/canvas-node-preparation";
+import { getCapabilitySetupRoute } from "./lib/integration-setup-routing";
 import {
   isDraftVersion,
   isPublishedVersion,
@@ -3002,9 +3003,24 @@ export function WorkflowPageV2() {
     justConnectedIntegrations,
   ]);
 
-  const handleConnectIntegration = useCallback((integrationName: string) => {
-    setIntegrationDialogName(integrationName);
-  }, []);
+  const handleConnectIntegration = useCallback(
+    (integrationName: string) => {
+      const setupRoute = getCapabilitySetupRoute({
+        organizationId,
+        integrationName,
+        definition: availableIntegrationsByName.get(integrationName),
+        pendingIntegration: nonReadyIntegrationsByName.get(integrationName),
+      });
+
+      if (setupRoute) {
+        navigate(setupRoute.path, { state: setupRoute.state });
+        return;
+      }
+
+      setIntegrationDialogName(integrationName);
+    },
+    [availableIntegrationsByName, navigate, nonReadyIntegrationsByName, organizationId],
+  );
 
   const handleIntegrationCreated = useCallback(
     async (integrationId: string, instanceName: string) => {

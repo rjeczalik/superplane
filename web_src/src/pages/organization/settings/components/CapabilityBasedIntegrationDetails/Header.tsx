@@ -3,6 +3,7 @@ import { PermissionTooltip } from "@/components/PermissionGate";
 import { Button } from "@/components/ui/button";
 import { IntegrationIcon } from "@/ui/componentSidebar/integrationIcons";
 import { CopyButton } from "@/ui/CopyButton";
+import { IntegrationOriginBadge } from "@/ui/IntegrationOriginBadge";
 import { ArrowLeft, Plug, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -49,6 +50,12 @@ export function Header({
             title={integrationStatus.charAt(0).toUpperCase() + integrationStatus.slice(1)}
           ></span>
           <span>{integrationName}</span>
+          <IntegrationOriginBadge
+            origin={integrationDef?.origin}
+            source={integrationDef?.source}
+            version={integrationDef?.version}
+            size="md"
+          />
         </h4>
         {integrationId ? (
           <div className="mt-1.5 flex max-w-full items-center gap-1.5">

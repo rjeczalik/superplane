@@ -97,8 +97,8 @@ func PreviousIntegrationSetupStep(ctx context.Context, registry *registry.Regist
 	})
 
 	if err != nil {
-		logrus.WithError(err).Error("failed to submit integration setup step")
-		return nil, status.Error(codes.Internal, "failed to submit integration setup step")
+		logrus.WithError(err).Error("failed to revert integration setup step")
+		return nil, status.Errorf(codes.Internal, "failed to revert integration setup step: %v", err)
 	}
 
 	proto, err := serializeIntegration(registry, integration, []models.CanvasNodeReference{})

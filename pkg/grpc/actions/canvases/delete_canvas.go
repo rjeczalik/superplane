@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
+	"github.com/superplanehq/superplane/pkg/database"
 	"github.com/superplanehq/superplane/pkg/grpc/actions/messages"
 	"github.com/superplanehq/superplane/pkg/models"
 	pb "github.com/superplanehq/superplane/pkg/protos/canvases"
@@ -13,6 +14,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 func DeleteCanvas(ctx context.Context, registry *registry.Registry, organizationID uuid.UUID, id string) (*pb.DeleteCanvasResponse, error) {
@@ -35,10 +37,28 @@ func DeleteCanvas(ctx context.Context, registry *registry.Registry, organization
 		return nil, status.Error(codes.FailedPrecondition, "templates are read-only")
 	}
 
-	// Perform soft delete on the canvas with name suffix
-	// The cleanup worker will handle the actual deletion of nodes and related data
-	err = canvas.SoftDelete()
+	err = database.Conn().Transaction(func(tx *gorm.DB) error {
+		var locked models.Canvas
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("id = ?", canvas.ID).
+			Where("organization_id = ?", organizationID).
+			Where("deleted_at IS NULL").
+			First(&locked).Error; err != nil {
+			return err
+		}
+		activeResources, err := models.CountActiveManagedResourcesForCanvasInTransaction(tx, canvas.ID)
+		if err != nil {
+			return err
+		}
+		if activeResources > 0 {
+			return status.Errorf(codes.FailedPrecondition, "canvas has %d active managed resources; delete or force-forget them first", activeResources)
+		}
+		return locked.SoftDeleteInTransaction(tx)
+	})
 	if err != nil {
+		if _, ok := status.FromError(err); ok {
+			return nil, err
+		}
 		log.Errorf("failed to delete canvas %s: %v", canvas.ID.String(), err)
 		return nil, status.Error(codes.Internal, "failed to delete canvas")
 	}

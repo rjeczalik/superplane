@@ -28,7 +28,7 @@ GOTESTSUM=$(COMPOSE) run --rm -e DB_NAME=superplane_test -v $(PWD)/tmp/screensho
 #
 
 lint:
-	$(COMPOSE) exec app revive -formatter friendly -config lint.toml -exclude ./tmp/... ./...
+	$(COMPOSE) exec app revive -formatter friendly -config lint.toml -exclude ./tmp/... -exclude ./pkg/integrations/terraform/internal/tfpluginclient/... ./...
 
 tidy:
 	$(COMPOSE) exec app go mod tidy

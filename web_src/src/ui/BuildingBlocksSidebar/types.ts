@@ -14,6 +14,8 @@ export interface BuildingBlock {
 }
 
 export type BuildingBlockCategory = {
+  id?: string;
   name: string;
+  icon?: string;
   blocks: BuildingBlock[];
 };

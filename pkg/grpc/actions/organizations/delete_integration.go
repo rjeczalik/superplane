@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 func DeleteIntegration(ctx context.Context, orgID string, ID string) (*pb.DeleteIntegrationResponse, error) {
@@ -34,7 +35,23 @@ func DeleteIntegration(ctx context.Context, orgID string, ID string) (*pb.Delete
 	// and delete its webhooks before we delete the integration itself.
 	//
 	err = database.Conn().Transaction(func(tx *gorm.DB) error {
-		webhooks, err := models.ListIntegrationWebhooks(tx, integration.ID)
+		var locked models.Integration
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("id = ?", integration.ID).
+			Where("organization_id = ?", org).
+			Where("deleted_at IS NULL").
+			First(&locked).Error; err != nil {
+			return status.Error(codes.NotFound, "integration not found")
+		}
+		activeResources, err := models.CountActiveManagedResourcesForIntegrationInTransaction(tx, integration.ID)
+		if err != nil {
+			return status.Error(codes.Internal, "failed to count managed resources")
+		}
+		if activeResources > 0 {
+			return status.Errorf(codes.FailedPrecondition, "integration has %d active managed resources; delete or force-forget them first", activeResources)
+		}
+
+		webhooks, err := models.ListIntegrationWebhooks(tx, locked.ID)
 		if err != nil {
 			return status.Error(codes.Internal, "failed to list integration webhooks")
 		}
@@ -49,13 +66,17 @@ func DeleteIntegration(ctx context.Context, orgID string, ID string) (*pb.Delete
 			}
 		}
 
-		err = integration.SoftDeleteInTransaction(tx)
+		err = locked.SoftDeleteInTransaction(tx)
 		if err != nil {
 			return status.Error(codes.Internal, "failed to delete integration")
 		}
 
 		return nil
 	})
+
+	if err != nil {
+		return nil, err
+	}
 
 	return &pb.DeleteIntegrationResponse{}, nil
 }

@@ -241,6 +241,7 @@ import {
   triggerRenderers as ociTriggerRenderers,
   eventStateRegistry as ociEventStateRegistry,
 } from "./oci/index";
+import { mapperForTerraformComponent, rendererForTerraformTrigger } from "./terraform/resource";
 
 import { filterMapper, FILTER_STATE_REGISTRY } from "./filter";
 import { sshMapper, SSH_STATE_REGISTRY } from "./ssh";
@@ -471,6 +472,10 @@ export function getTriggerRenderer(name: string): TriggerRenderer {
   const appName = parts[0];
   const appTriggers = appTriggerRenderers[appName];
   if (!appTriggers) {
+    const terraformRenderer = rendererForTerraformTrigger(name);
+    if (terraformRenderer) {
+      return createSafeTriggerRenderer(withCustomName(terraformRenderer), name);
+    }
     return createSafeTriggerRenderer(withCustomName(defaultTriggerRenderer), name);
   }
 
@@ -581,7 +586,7 @@ function findRegisteredComponentMapper(name: string): ComponentBaseMapper | unde
 
   const appMapper = appMappers[parts[0]];
   if (!appMapper) {
-    return undefined;
+    return mapperForTerraformComponent(name);
   }
 
   return appMapper[parts.slice(1).join(".")];

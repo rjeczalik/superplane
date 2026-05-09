@@ -206,6 +206,15 @@ func (w *CanvasCleanupWorker) processCanvas(tx *gorm.DB, canvas models.Canvas) (
 		return nil, fmt.Errorf("delete canvas agent sessions: %w", err)
 	}
 
+	retainedManagedResources, err := models.CountRetainedManagedResourceRowsForCanvas(canvas.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to count retained managed resources for canvas: %w", err)
+	}
+	if retainedManagedResources > 0 {
+		w.logger.Infof("Skipping hard delete for canvas %s while %d retained managed resource rows remain", canvas.ID, retainedManagedResources)
+		return nil, nil
+	}
+
 	if err := tx.Unscoped().Delete(&canvas).Error; err != nil {
 		return nil, fmt.Errorf("failed to delete canvas: %w", err)
 	}

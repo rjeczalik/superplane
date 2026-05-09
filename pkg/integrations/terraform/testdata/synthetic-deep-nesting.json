@@ -1,0 +1,61 @@
+{
+  "format_version": "1.0",
+  "provider_schemas": {
+    "registry.terraform.io/example/deep": {
+      "provider": {
+        "version": 0,
+        "block": {
+          "attributes": {},
+          "description_kind": "markdown"
+        }
+      },
+      "resource_schemas": {
+        "deep_resource": {
+          "version": 0,
+          "block": {
+            "attributes": {
+              "top": {
+                "type": [
+                  "object",
+                  {
+                    "middle": [
+                      "object",
+                      {
+                        "bottom": [
+                          "object",
+                          {
+                            "leaf": "string"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "description": "Deep nested object",
+                "description_kind": "markdown",
+                "optional": true
+              },
+              "items": {
+                "type": [
+                  "list",
+                  [
+                    "object",
+                    {
+                      "name": "string",
+                      "value": "number"
+                    }
+                  ]
+                ],
+                "description": "List of objects",
+                "description_kind": "markdown",
+                "optional": true
+              }
+            },
+            "description_kind": "markdown"
+          }
+        }
+      },
+      "data_source_schemas": {}
+    }
+  }
+}
