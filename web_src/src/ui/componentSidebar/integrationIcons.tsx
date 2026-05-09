@@ -51,6 +51,7 @@ import renderIcon from "@/assets/icons/integrations/render.svg";
 import sentryIcon from "@/assets/icons/integrations/sentry.svg";
 import dockerIcon from "@/assets/icons/integrations/docker.svg";
 import hetznerIcon from "@/assets/icons/integrations/hetzner.svg";
+import hetznerRobotIcon from "@/assets/icons/integrations/hetzner_robot.svg";
 import honeycombIcon from "@/assets/icons/integrations/honeycomb.svg";
 import jfrogArtifactoryIcon from "@/assets/icons/integrations/jfrog-artifactory.svg";
 import harnessIcon from "@/assets/icons/integrations/harness.svg";
@@ -79,6 +80,7 @@ export const INTEGRATION_APP_LOGO_MAP: Record<string, string> = {
   github: githubIcon,
   gitlab: gitlabIcon,
   hetzner: hetznerIcon,
+  hetznerrobot: hetznerRobotIcon,
   jfrogartifactory: jfrogArtifactoryIcon,
   grafana: grafanaIcon,
   jira: jiraIcon,
@@ -128,6 +130,7 @@ export const APP_LOGO_MAP: Record<string, string | Record<string, string>> = {
   github: githubIcon,
   gitlab: gitlabIcon,
   hetzner: hetznerIcon,
+  hetznerRobot: hetznerRobotIcon,
   jfrogArtifactory: jfrogArtifactoryIcon,
   grafana: grafanaIcon,
   jira: jiraIcon,

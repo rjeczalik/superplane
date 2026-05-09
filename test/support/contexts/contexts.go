@@ -561,7 +561,24 @@ func (c *CapabilityContext) Disable(capabilities ...string) {
 }
 
 func (c *CapabilityContext) Available(capabilities ...string) {
+	for _, cap := range capabilities {
+		// Remove from other state lists to match the real single-state-per-capability semantics.
+		c.RequestedCapabilties = removeFrom(c.RequestedCapabilties, cap)
+		c.EnabledCapabilities = removeFrom(c.EnabledCapabilities, cap)
+		c.DisabledCapabilities = removeFrom(c.DisabledCapabilities, cap)
+		c.UnavailableCapabilities = removeFrom(c.UnavailableCapabilities, cap)
+	}
 	c.AvailableCapabilities = append(c.AvailableCapabilities, capabilities...)
+}
+
+func removeFrom(slice []string, item string) []string {
+	result := slice[:0:0]
+	for _, s := range slice {
+		if s != item {
+			result = append(result, s)
+		}
+	}
+	return result
 }
 
 func (c *CapabilityContext) Unavailable(capabilities ...string) {

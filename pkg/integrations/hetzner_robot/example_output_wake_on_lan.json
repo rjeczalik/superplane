@@ -1,0 +1,8 @@
+{
+  "type": "hetznerRobot.server.woken",
+  "data": {
+    "serverNumber": "12345",
+    "serverIP": "1.2.3.4"
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}

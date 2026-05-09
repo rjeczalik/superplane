@@ -1,0 +1,13 @@
+{
+  "type": "hetznerRobot.server.renamed",
+  "data": {
+    "serverNumber": "12345",
+    "name": "new-name",
+    "product": "EX42",
+    "datacenter": "FSN1-DC14",
+    "status": "ready",
+    "cancelled": false,
+    "ipv4": "1.2.3.4"
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}

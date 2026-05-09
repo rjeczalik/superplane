@@ -1,0 +1,17 @@
+{
+  "type": "hetznerRobot.linux.installed",
+  "data": {
+    "serverNumber": "321",
+    "dist": "Debian 12 base",
+    "lang": "en",
+    "passwordGenerated": true,
+    "passwordSecretName": "linux-password-321",
+    "authorizedKeys": [
+      "ab:cd:ef:01:23:45:67:89:ab:cd:ef:01:23:45:67:89"
+    ],
+    "hostKeys": [
+      "ecdsa-sha2-nistp256 AAAA..."
+    ]
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}

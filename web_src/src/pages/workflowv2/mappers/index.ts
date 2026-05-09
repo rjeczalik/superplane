@@ -120,6 +120,11 @@ import {
 import { triggerRenderers as bitbucketTriggerRenderers } from "./bitbucket/index";
 import { componentMappers as hetznerComponentMappers } from "./hetzner/index";
 import {
+  componentMappers as hetznerRobotComponentMappers,
+  triggerRenderers as hetznerRobotTriggerRenderers,
+  eventStateRegistry as hetznerRobotEventStateRegistry,
+} from "./hetznerRobot/index";
+import {
   componentMappers as jfrogArtifactoryComponentMappers,
   triggerRenderers as jfrogArtifactoryTriggerRenderers,
   eventStateRegistry as jfrogArtifactoryEventStateRegistry,
@@ -321,6 +326,7 @@ const appMappers: Record<string, Record<string, ComponentBaseMapper>> = {
   prometheus: prometheusComponentMappers,
   cursor: cursorComponentMappers,
   hetzner: hetznerComponentMappers,
+  hetznerRobot: hetznerRobotComponentMappers,
   jfrogArtifactory: jfrogArtifactoryComponentMappers,
   statuspage: statuspageComponentMappers,
   dockerhub: dockerhubComponentMappers,
@@ -372,6 +378,7 @@ const appTriggerRenderers: Record<string, Record<string, TriggerRenderer>> = {
   dockerhub: dockerhubTriggerRenderers,
   honeycomb: honeycombTriggerRenderers,
   harness: harnessTriggerRenderers,
+  hetznerRobot: hetznerRobotTriggerRenderers,
   servicenow: servicenowTriggerRenderers,
   elastic: elasticTriggerRenderers,
   oci: ociTriggerRenderers,
@@ -417,6 +424,7 @@ const appEventStateRegistries: Record<string, Record<string, EventStateRegistry>
   dockerhub: dockerhubEventStateRegistry,
   honeycomb: honeycombEventStateRegistry,
   harness: harnessEventStateRegistry,
+  hetznerRobot: hetznerRobotEventStateRegistry,
   servicenow: servicenowEventStateRegistry,
   elastic: elasticEventStateRegistry,
   oci: ociEventStateRegistry,

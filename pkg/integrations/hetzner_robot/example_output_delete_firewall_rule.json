@@ -1,0 +1,9 @@
+{
+  "type": "hetznerRobot.firewallRule.deleted",
+  "data": {
+    "serverNumber": "321",
+    "ruleCount": 1,
+    "deletedRuleName": "Allow HTTPS"
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}

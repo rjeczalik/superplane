@@ -1,0 +1,16 @@
+{
+  "type": "hetznerRobot.firewallRule.updated",
+  "data": {
+    "serverNumber": "321",
+    "ruleCount": 2,
+    "rule": {
+      "name": "Allow SSH",
+      "ip_version": "ipv4",
+      "protocol": "tcp",
+      "dst_port": "22",
+      "src_ip": "10.0.0.0/8",
+      "action": "accept"
+    }
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}

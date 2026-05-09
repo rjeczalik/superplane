@@ -1,0 +1,15 @@
+{
+  "type": "hetznerRobot.sshKey.listed",
+  "data": {
+    "keys": [
+      {
+        "name": "deploy-key",
+        "fingerprint": "ab:cd:ef:01:23:45:67:89:ab:cd:ef:01:23:45:67:89",
+        "type": "RSA",
+        "size": 4096
+      }
+    ],
+    "keyCount": 1
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}

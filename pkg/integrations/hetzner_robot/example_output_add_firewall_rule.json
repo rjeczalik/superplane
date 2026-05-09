@@ -1,0 +1,16 @@
+{
+  "type": "hetznerRobot.firewallRule.added",
+  "data": {
+    "serverNumber": "321",
+    "ruleCount": 2,
+    "rule": {
+      "name": "Allow HTTPS",
+      "ip_version": "ipv4",
+      "protocol": "tcp",
+      "dst_port": "443",
+      "src_ip": "0.0.0.0/0",
+      "action": "accept"
+    }
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}

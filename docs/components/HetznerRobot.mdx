@@ -1,0 +1,585 @@
+---
+title: "Hetzner Robot"
+---
+
+Manage Hetzner dedicated servers: rescue mode, SSH keys, Linux install, firewall, power, and naming
+
+import { CardGrid, LinkCard } from "@astrojs/starlight/components";
+
+## Actions
+
+<CardGrid>
+  <LinkCard title="Add Firewall Rule" href="#add-firewall-rule" description="Add a firewall rule to a Hetzner dedicated server" />
+  <LinkCard title="Add SSH Key" href="#add-ssh-key" description="Add a new SSH key to the Hetzner Robot account" />
+  <LinkCard title="Cancel Linux Install" href="#cancel-linux-install" description="Cancel a pending Linux installation on a Hetzner dedicated server" />
+  <LinkCard title="Delete Firewall Rule" href="#delete-firewall-rule" description="Delete a firewall rule from a Hetzner dedicated server" />
+  <LinkCard title="Delete SSH Key" href="#delete-ssh-key" description="Delete an SSH key from the Hetzner Robot account" />
+  <LinkCard title="Disable Rescue" href="#disable-rescue" description="Disable rescue boot mode on a Hetzner dedicated server" />
+  <LinkCard title="Enable Rescue" href="#enable-rescue" description="Enable rescue boot mode on a Hetzner dedicated server" />
+  <LinkCard title="Get Server" href="#get-server" description="Fetch details of a Hetzner dedicated server" />
+  <LinkCard title="Install Linux" href="#install-linux" description="Activate Linux installation on a Hetzner dedicated server" />
+  <LinkCard title="List Firewall Rules" href="#list-firewall-rules" description="List all firewall rules on a Hetzner dedicated server" />
+  <LinkCard title="List Servers" href="#list-servers" description="List all dedicated servers in the Hetzner Robot account" />
+  <LinkCard title="List SSH Keys" href="#list-ssh-keys" description="List all SSH keys in the Hetzner Robot account" />
+  <LinkCard title="Rename Server" href="#rename-server" description="Rename a Hetzner dedicated server" />
+  <LinkCard title="Reset Server" href="#reset-server" description="Execute a power reset on a Hetzner dedicated server and wait for completion" />
+  <LinkCard title="Update Firewall Rule" href="#update-firewall-rule" description="Update a firewall rule on a Hetzner dedicated server" />
+  <LinkCard title="Wake on LAN" href="#wake-on-lan" description="Send a Wake-on-LAN packet to a Hetzner dedicated server" />
+</CardGrid>
+
+## Instructions
+
+**API Credentials:** Create a webservice user in your [Hetzner Robot panel](https://robot.your-server.de/) → Settings → Webservice and app settings. Use **Read & Write** access.
+
+<a id="add-firewall-rule"></a>
+
+## Add Firewall Rule
+
+The Add Firewall Rule component adds a new inbound rule to a Hetzner dedicated server's firewall.
+
+Uses read-modify-write: fetches current rules, appends the new rule, and applies the full set atomically.
+
+### Fields
+
+- **Server**: The dedicated server
+- **Name**: Unique rule name (used as identifier for updates/deletes)
+- **IP Version**: ipv4 or ipv6
+- **Protocol**: tcp, udp, icmp, etc. (optional)
+- **Source IP**: Source address in CIDR notation (optional)
+- **Destination Port**: Port or range, e.g. 443 or 1000-2000 (optional)
+- **Source Port**: Source port or range (optional)
+- **Action**: accept or discard
+- **TCP Flags**: TCP flags filter (optional)
+
+### Output
+
+- **serverNumber**: Server identifier
+- **ruleCount**: Total rules after addition
+- **rule**: The newly added rule
+
+### Example Output
+
+```json
+{
+  "data": {
+    "rule": {
+      "action": "accept",
+      "dst_port": "443",
+      "ip_version": "ipv4",
+      "name": "Allow HTTPS",
+      "protocol": "tcp",
+      "src_ip": "0.0.0.0/0"
+    },
+    "ruleCount": 2,
+    "serverNumber": "321"
+  },
+  "timestamp": "2024-01-15T10:30:00Z",
+  "type": "hetznerRobot.firewallRule.added"
+}
+```
+
+<a id="add-ssh-key"></a>
+
+## Add SSH Key
+
+The Add SSH Key component uploads a new SSH public key to the Hetzner Robot account.
+
+### Fields
+
+- **Name**: A label for the SSH key
+- **Data**: The SSH public key data (ssh-rsa, ssh-ed25519, ecdsa, or ssh-dss format)
+
+### Output
+
+- **name**: Key name
+- **fingerprint**: MD5 fingerprint of the key
+- **type**: Key type (RSA, ED25519, etc.)
+- **size**: Key size in bits
+
+### Example Output
+
+```json
+{
+  "data": {
+    "fingerprint": "ab:cd:ef:01:23:45:67:89:ab:cd:ef:01:23:45:67:89",
+    "name": "deploy-key",
+    "size": 4096,
+    "type": "RSA"
+  },
+  "timestamp": "2024-01-15T10:30:00Z",
+  "type": "hetznerRobot.sshKey.added"
+}
+```
+
+<a id="cancel-linux-install"></a>
+
+## Cancel Linux Install
+
+The Cancel Linux Install component deactivates a pending Linux installation on a Hetzner dedicated server.
+
+If no installation is active (404), this is treated as a successful cancellation (idempotent).
+
+### Fields
+
+- **Server**: The dedicated server
+
+### Example Output
+
+```json
+{
+  "data": {
+    "serverNumber": "321"
+  },
+  "timestamp": "2024-01-15T10:30:00Z",
+  "type": "hetznerRobot.linux.cancelled"
+}
+```
+
+<a id="delete-firewall-rule"></a>
+
+## Delete Firewall Rule
+
+The Delete Firewall Rule component removes an inbound rule from a Hetzner dedicated server's firewall.
+
+Matches the rule by name, removes it, and applies the remaining rules atomically.
+
+### Fields
+
+- **Server**: The dedicated server
+- **Name**: Name of the rule to delete (must exist)
+
+### Output
+
+- **serverNumber**: Server identifier
+- **ruleCount**: Remaining rules after deletion
+- **deletedRuleName**: Name of the removed rule
+
+### Example Output
+
+```json
+{
+  "data": {
+    "deletedRuleName": "Allow HTTPS",
+    "ruleCount": 1,
+    "serverNumber": "321"
+  },
+  "timestamp": "2024-01-15T10:30:00Z",
+  "type": "hetznerRobot.firewallRule.deleted"
+}
+```
+
+<a id="delete-ssh-key"></a>
+
+## Delete SSH Key
+
+The Delete SSH Key component removes an SSH key from the Hetzner Robot account.
+
+### Fields
+
+- **Fingerprint**: The SSH key to delete (selected from account keys)
+
+### Output
+
+- **fingerprint**: The fingerprint of the deleted key
+
+### Example Output
+
+```json
+{
+  "data": {
+    "fingerprint": "ab:cd:ef:01:23:45:67:89:ab:cd:ef:01:23:45:67:89"
+  },
+  "timestamp": "2024-01-15T10:30:00Z",
+  "type": "hetznerRobot.sshKey.deleted"
+}
+```
+
+<a id="disable-rescue"></a>
+
+## Disable Rescue
+
+The Disable Rescue component deactivates rescue boot mode on a Hetzner dedicated server.
+
+### Fields
+
+- **Server**: The dedicated server
+
+### Example Output
+
+```json
+{
+  "data": {
+    "serverNumber": "321"
+  },
+  "timestamp": "2024-01-15T10:30:00Z",
+  "type": "hetznerRobot.rescue.disabled"
+}
+```
+
+<a id="enable-rescue"></a>
+
+## Enable Rescue
+
+The Enable Rescue component activates rescue boot mode on a Hetzner dedicated server.
+
+After enabling, the server must be reset to boot into rescue mode.
+A root password is generated and stored securely via integration secrets.
+
+### Fields
+
+- **Server**: The dedicated server
+- **OS**: Rescue operating system (linux, linuxold, freebsd, freebsdold, vkvm, vkvmold)
+- **SSH Keys**: Optional list of SSH key fingerprints for authorized access
+
+**Note:** Architecture is fixed to 64-bit. 32-bit rescue images are not supported.
+
+### Example Output
+
+```json
+{
+  "data": {
+    "authorizedKeys": [
+      "ab:cd:ef:01:23:45:67:89:ab:cd:ef:01:23:45:67:89"
+    ],
+    "os": "linux",
+    "passwordGenerated": true,
+    "passwordSecretName": "rescue-password-321",
+    "serverNumber": "321"
+  },
+  "timestamp": "2024-01-15T10:30:00Z",
+  "type": "hetznerRobot.rescue.enabled"
+}
+```
+
+<a id="get-server"></a>
+
+## Get Server
+
+The Get Server component retrieves details about a Hetzner dedicated server.
+
+### Output
+
+Returns server details including:
+- **serverNumber**: Server ID
+- **name**: Server hostname
+- **product**: Server product type
+- **datacenter**: Datacenter location
+- **status**: Server status
+- **cancelled**: Whether the server is cancelled
+- **ipv4**: Primary IPv4 address
+
+### Example Output
+
+```json
+{
+  "data": {
+    "cancelled": false,
+    "datacenter": "fsn1-dc14",
+    "ipv4": "1.2.3.4",
+    "name": "my-server",
+    "product": "EX42",
+    "serverNumber": "12345",
+    "status": "ready"
+  },
+  "timestamp": "2024-01-15T10:30:00Z",
+  "type": "hetznerRobot.server.fetched"
+}
+```
+
+<a id="install-linux"></a>
+
+## Install Linux
+
+The Install Linux component activates a Linux installation on a Hetzner dedicated server.
+
+The server must be rebooted after activation for installation to begin.
+A root password is generated and stored securely via integration secrets.
+
+### Fields
+
+- **Server**: The dedicated server
+- **Distribution**: Linux distribution to install
+- **Language**: Installation language (en, de, fi)
+- **SSH Keys**: Optional SSH key fingerprints for authorized access
+
+### Example Output
+
+```json
+{
+  "data": {
+    "authorizedKeys": [
+      "ab:cd:ef:01:23:45:67:89:ab:cd:ef:01:23:45:67:89"
+    ],
+    "dist": "Debian 12 base",
+    "hostKeys": [
+      "ecdsa-sha2-nistp256 AAAA..."
+    ],
+    "lang": "en",
+    "passwordGenerated": true,
+    "passwordSecretName": "linux-password-321",
+    "serverNumber": "321"
+  },
+  "timestamp": "2024-01-15T10:30:00Z",
+  "type": "hetznerRobot.linux.installed"
+}
+```
+
+<a id="list-firewall-rules"></a>
+
+## List Firewall Rules
+
+The List Firewall Rules component retrieves the current firewall configuration for a Hetzner dedicated server.
+
+### Fields
+
+- **Server**: The dedicated server
+
+### Output
+
+- **serverNumber**: Server identifier
+- **status**: Firewall status (active, disabled, in process)
+- **whitelistHos**: Whether Hetzner services are whitelisted
+- **rules**: Array of input rules with name, ip_version, protocol, ports, source IP, and action
+- **ruleCount**: Total number of input rules
+
+### Example Output
+
+```json
+{
+  "data": {
+    "ruleCount": 1,
+    "rules": [
+      {
+        "action": "accept",
+        "dst_port": "22",
+        "ip_version": "ipv4",
+        "name": "Allow SSH",
+        "protocol": "tcp",
+        "src_ip": "0.0.0.0/0"
+      }
+    ],
+    "serverNumber": "321",
+    "status": "active",
+    "whitelistHos": true
+  },
+  "timestamp": "2024-01-15T10:30:00Z",
+  "type": "hetznerRobot.firewallRule.listed"
+}
+```
+
+<a id="list-servers"></a>
+
+## List Servers
+
+The List Servers component retrieves all dedicated servers in the Hetzner Robot account.
+
+### Output
+
+- **servers**: Array of server objects, each containing:
+  - **serverNumber**: Server ID
+  - **name**: Server hostname
+  - **product**: Server product type
+  - **datacenter**: Datacenter location
+  - **status**: Server status
+  - **cancelled**: Whether the server is cancelled
+  - **ipv4**: Primary IPv4 address (if available)
+- **serverCount**: Total number of servers
+
+### Example Output
+
+```json
+{
+  "data": {
+    "serverCount": 1,
+    "servers": [
+      {
+        "cancelled": false,
+        "datacenter": "fsn1-dc14",
+        "ipv4": "1.2.3.4",
+        "name": "my-server",
+        "product": "EX42",
+        "serverNumber": "12345",
+        "status": "ready"
+      }
+    ]
+  },
+  "timestamp": "2024-01-15T10:30:00Z",
+  "type": "hetznerRobot.server.listed"
+}
+```
+
+<a id="list-ssh-keys"></a>
+
+## List SSH Keys
+
+The List SSH Keys component retrieves all SSH keys stored in the Hetzner Robot account.
+
+### Output
+
+- **keys**: Array of SSH keys with name, fingerprint, type, and size
+- **keyCount**: Total number of keys
+
+### Example Output
+
+```json
+{
+  "data": {
+    "keyCount": 1,
+    "keys": [
+      {
+        "fingerprint": "ab:cd:ef:01:23:45:67:89:ab:cd:ef:01:23:45:67:89",
+        "name": "deploy-key",
+        "size": 4096,
+        "type": "RSA"
+      }
+    ]
+  },
+  "timestamp": "2024-01-15T10:30:00Z",
+  "type": "hetznerRobot.sshKey.listed"
+}
+```
+
+<a id="rename-server"></a>
+
+## Rename Server
+
+The Rename Server component changes the display name of a Hetzner dedicated server.
+
+### Output
+
+Returns server details including:
+- **serverNumber**: Server ID
+- **name**: Server hostname
+- **product**: Server product type
+- **datacenter**: Datacenter location
+- **status**: Server status
+- **cancelled**: Whether the server is cancelled
+- **ipv4**: Primary IPv4 address
+
+### Example Output
+
+```json
+{
+  "data": {
+    "cancelled": false,
+    "datacenter": "FSN1-DC14",
+    "ipv4": "1.2.3.4",
+    "name": "new-name",
+    "product": "EX42",
+    "serverNumber": "12345",
+    "status": "ready"
+  },
+  "timestamp": "2024-01-15T10:30:00Z",
+  "type": "hetznerRobot.server.renamed"
+}
+```
+
+<a id="reset-server"></a>
+
+## Reset Server
+
+The Reset Server component executes a power reset on a Hetzner dedicated server and polls until the reset completes.
+
+### Configuration
+
+- **Server**: The dedicated server to reset
+- **Reset Type**: The type of reset to perform
+  - **sw**: Software reset (CTRL+ALT+DEL)
+  - **hw**: Hardware reset (power cycle)
+  - **power**: Short power button press
+  - **power_long**: Long power button press
+  - **man**: Manual reset by datacenter technician
+
+### Output
+
+Returns the reset result including:
+- **serverNumber**: Server ID
+- **resetType**: The reset type that was executed
+- **status**: Final reset status
+
+### Example Output
+
+```json
+{
+  "data": {
+    "resetType": "sw",
+    "serverNumber": "12345",
+    "status": "success"
+  },
+  "timestamp": "2024-01-15T10:30:00Z",
+  "type": "hetznerRobot.server.reset"
+}
+```
+
+<a id="update-firewall-rule"></a>
+
+## Update Firewall Rule
+
+The Update Firewall Rule component replaces an existing inbound rule on a Hetzner dedicated server's firewall.
+
+Matches the existing rule by name, replaces it with the new definition, and applies atomically.
+
+### Fields
+
+- **Server**: The dedicated server
+- **Name**: Name of the rule to update (must exist)
+- **IP Version**: ipv4 or ipv6
+- **Protocol**: tcp, udp, icmp, etc. (optional)
+- **Source IP**: Source address in CIDR notation (optional)
+- **Destination Port**: Port or range (optional)
+- **Source Port**: Source port or range (optional)
+- **Action**: accept or discard
+- **TCP Flags**: TCP flags filter (optional)
+
+### Output
+
+- **serverNumber**: Server identifier
+- **ruleCount**: Total rules after update
+- **rule**: The updated rule
+
+### Example Output
+
+```json
+{
+  "data": {
+    "rule": {
+      "action": "accept",
+      "dst_port": "22",
+      "ip_version": "ipv4",
+      "name": "Allow SSH",
+      "protocol": "tcp",
+      "src_ip": "10.0.0.0/8"
+    },
+    "ruleCount": 2,
+    "serverNumber": "321"
+  },
+  "timestamp": "2024-01-15T10:30:00Z",
+  "type": "hetznerRobot.firewallRule.updated"
+}
+```
+
+<a id="wake-on-lan"></a>
+
+## Wake on LAN
+
+The Wake on LAN component sends a Wake-on-LAN magic packet to a Hetzner dedicated server.
+
+### Output
+
+Returns:
+- **serverNumber**: Server ID
+- **serverIP**: Primary IPv4 address
+
+### Example Output
+
+```json
+{
+  "data": {
+    "serverIP": "1.2.3.4",
+    "serverNumber": "12345"
+  },
+  "timestamp": "2024-01-15T10:30:00Z",
+  "type": "hetznerRobot.server.woken"
+}
+```
+
